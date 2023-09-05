@@ -6,9 +6,9 @@
 ## Example Usage
 ```js
 //MyApiService.js
-import ApiService from "@gcgov/apiservice"
+import {ApiService,ApiConfig} from "@gcgov/apiservice"
 
-const config = new CoreApiConfig(
+const config = new ApiConfig(
 	'https://www.myapi.com/',      //base url for the api
 	'XDEBUG_SESSION=PHPSTORM',     //url parameters to be added to every request
 	true,                          //api requires authentication
