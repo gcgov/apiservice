@@ -1,0 +1,23 @@
+{
+	"name": "@gcgov/apiservice",
+	"version": "1.0.0",
+	"description": "Extendable class that provides default rest API methods built upon Axios",
+	"main": "ApiService.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"dependencies": {
+		"axios": "^0.24.0",
+		"lodash": "^4.17.21"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/gcgov/apiservice.git"
+	},
+	"author": "Andrew Sauder",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/gcgov/apiservice/issues"
+	},
+	"homepage": "https://github.com/gcgov/apiservice#readme"
+}
