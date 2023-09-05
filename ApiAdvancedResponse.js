@@ -1,3 +1,4 @@
+// eslint-disable-next-line
 import {AxiosResponse} from "axios";
 
 class ApiAdvancedResponse {

@@ -1,10 +1,12 @@
 import ApiError from "./ApiError";
 import ApiAuthError from "./ApiAuthError";
+// eslint-disable-next-line
 import ApiConfig from "./ApiConfig";
 import ApiRequestQueueItem from "./ApiRequestQueueItem";
 import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import axios    from "axios";
 import _        from "lodash"
+// eslint-disable-next-line
 import {AxiosInstance, AxiosResponse, AxiosRequestConfig} from "axios";
 
 class ApiService {
@@ -376,3 +378,4 @@ class ApiService {
 }
 
 export default ApiService;
+export {ApiConfig,ApiError,ApiAuthError,ApiAdvancedResponse,ApiRequestQueueItem}
