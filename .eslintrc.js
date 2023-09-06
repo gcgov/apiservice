@@ -4,7 +4,6 @@ module.exports = {
     node: true
   },
   'extends': [
-    'plugin:vue/essential',
     'eslint:recommended'
   ],
   parserOptions: {
@@ -22,7 +21,7 @@ module.exports = {
 		  "error",
 		  "smart-tabs"
 	  ],
-    'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
-    'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off'
+    'no-console': 'warn',
+    'no-debugger': 'warn'
   }
 }
