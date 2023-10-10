@@ -151,6 +151,12 @@ class ApiService {
 		if( e.response && e.response.data && e.response.data.data ) {
 			throw new ApiError( e.response.data.message, e.response.status, e.response.data.data );
 		}
+
+		//clean up 400,404,500 etc
+		else if( e.response && e.response.status ) {
+			throw new ApiError( e.message, e.response.status );
+		}
+
 		//axios error - presumably a network error
 		else {
 			throw e
