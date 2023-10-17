@@ -148,8 +148,8 @@ class ApiService {
 		}
 
 		//api returned a structured error
-		if( e.response && e.response.data && e.response.data.data ) {
-			throw new ApiError( e.response.data.message, e.response.status, e.response.data.data );
+		if( e.response && e.response.data && e.response.data.message ) {
+			throw new ApiError( e.response.data.message, e.response.status, e.response.data );
 		}
 
 		//clean up 400,404,500 etc
