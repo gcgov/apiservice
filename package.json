@@ -2,18 +2,24 @@
 	"name": "@gcgov/apiservice",
 	"version": "1.0.7",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
-	"main": "ApiService.js",
+	"main": "src/ApiService.js",
 	"scripts": {
+		"build": "tsup",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"dependencies": {
-		"axios": "^1.5.1",
+		"@types/web": "^0.0.138",
+		"axios": "^1.6.7",
 		"lodash": "^4.17.21"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.22.20",
 		"@babel/eslint-parser": "^7.22.15",
-		"eslint": "^8.49.0"
+		"@types/lodash": "^4.14.202",
+		"eslint": "^8.49.0",
+		"ts-node": "^10.9.2",
+		"tsup": "^8.0.1",
+		"typescript": "^5.3.3"
 	},
 	"repository": {
 		"type": "git",
