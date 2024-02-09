@@ -1,6 +1,6 @@
 {
 	"name": "@gcgov/apiservice",
-	"version": "1.2.3",
+	"version": "1.2.4",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
 	"main": "dist/ApiService.js",
 	"scripts": {
