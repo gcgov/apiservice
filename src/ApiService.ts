@@ -5,7 +5,7 @@ import ApiConfig from "./ApiConfig";
 import ApiRequestQueueItem from "./ApiRequestQueueItem";
 import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import axios, {AxiosError} from "axios";
-import _ from "lodash"
+import {trimEnd,isEmpty} from "lodash"
 
 // eslint-disable-next-line
 import {AxiosInstance, AxiosResponse, AxiosRequestConfig} from "axios";
@@ -84,7 +84,7 @@ class ApiService {
             append += this.config.baseUrlParams;
         }
 
-        return this.config.baseUrl + '/' + cleanUrlPath + append;
+        return trimEnd( this.config.baseUrl, '/' ) + '/' + cleanUrlPath + append;
     }
 
     private buildAxiosConfig = async (
@@ -257,7 +257,7 @@ class ApiService {
         options:AxiosRequestConfig<any> = {},
         authentication:boolean = true
     ):Promise<AxiosResponse> => {
-        if (_.isEmpty(options.headers)) {
+        if (isEmpty(options.headers)) {
             options.headers = {};
         }
         options.headers['Content-Type'] = 'multipart/form-data';
