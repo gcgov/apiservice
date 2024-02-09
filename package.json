@@ -2,7 +2,7 @@
 	"name": "@gcgov/apiservice",
 	"version": "1.2.0",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
-	"main": "src/ApiService.js",
+	"main": "dist/ApiService.js",
 	"scripts": {
 		"build": "tsup",
 		"test": "echo \"Error: no test specified\" && exit 1"
