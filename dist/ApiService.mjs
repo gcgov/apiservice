@@ -74,8 +74,8 @@ var ApiAdvancedResponse = class {
 var ApiAdvancedResponse_default = ApiAdvancedResponse;
 
 // src/ApiService.ts
-import axios, { AxiosError } from "axios";
-import _ from "lodash";
+import axios from "axios";
+import { trimEnd, isEmpty } from "lodash";
 var ApiService = class {
   serviceId = "";
   config;
@@ -123,7 +123,7 @@ var ApiService = class {
       }
       append += this.config.baseUrlParams;
     }
-    return this.config.baseUrl + "/" + cleanUrlPath + append;
+    return trimEnd(this.config.baseUrl, "/") + "/" + cleanUrlPath + append;
   }
   buildAxiosConfig = async (options = {}, abortController = null, authentication = true, requestId = crypto.randomUUID()) => {
     let config = {
@@ -155,20 +155,31 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   apiErrorCatch = async (e) => {
-    if (e instanceof AxiosError) {
-      if (e.request.responseType === "blob" && e.response?.data instanceof Blob && e.response?.data.type && e.response?.data.type.toLowerCase().indexOf("json") != -1) {
-        let resolvedResponse = JSON.parse(await e.response?.data.text());
-        if (resolvedResponse.message) {
+    if (axios.isAxiosError(e)) {
+      const response = e?.response;
+      const request = e?.request;
+      const config = e?.config;
+      if (e.code === "ERR_NETWORK") {
+        throw new ApiError_default("Network connection problem", "1001");
+      } else if (e.code === "ERR_CANCELED") {
+        throw new ApiError_default("Request cancelled", "1000");
+      }
+      if (response && response.data && response.data.message) {
+        throw new ApiError_default(response.data.message, response.status, response.data);
+      } else if (response && response.status) {
+        throw new ApiError_default(e.message, response.status);
+      } else if (request && response && request.responseType === "blob" && response.data instanceof Blob && response.data.type && response.data.type.toLowerCase().includes("json")) {
+        let resolvedResponse = JSON.parse(await response.data.text());
+        if (resolvedResponse.message && resolvedResponse.status && resolvedResponse.data) {
           throw new ApiError_default(resolvedResponse.message, resolvedResponse.status, resolvedResponse.data);
+        } else if (resolvedResponse.message && resolvedResponse.data) {
+          throw new ApiError_default(resolvedResponse.message, response.status, resolvedResponse.data);
         }
       }
-      if (e.response && e.response.data && e.response.data.message) {
-        throw new ApiError_default(e.response.data.message, e.response.status, e.response.data);
-      } else if (e.response && e.response.status) {
-        throw new ApiError_default(e.message, e.response.status);
-      }
+    } else if (e instanceof Error) {
+      throw e;
     }
-    throw e;
+    throw new ApiError_default("Unrecoverable error in local API service");
   };
   cancelRequest = async (requestId = "") => {
     await this.cancelRequests([requestId]);
@@ -192,15 +203,11 @@ var ApiService = class {
    */
   getAdv = async (url, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest(url, null, options, authentication);
-    try {
-      let responsePromise = this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig);
-      return new ApiAdvancedResponse_default(requestQueueItem, responsePromise);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    let responsePromise = this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
+    return new ApiAdvancedResponse_default(requestQueueItem, responsePromise);
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
@@ -214,15 +221,11 @@ var ApiService = class {
    */
   postAdv = async (url, data, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    try {
-      let responsePromise = this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig);
-      return new ApiAdvancedResponse_default(requestQueueItem, responsePromise);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    let responsePromise = this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
+    return new ApiAdvancedResponse_default(requestQueueItem, responsePromise);
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
@@ -235,47 +238,35 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   postForm = async (url, data, options = {}, authentication = true) => {
-    if (_.isEmpty(options.headers)) {
+    if (isEmpty(options.headers)) {
       options.headers = {};
     }
     options.headers["Content-Type"] = "multipart/form-data";
     let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    try {
-      return this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    return this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
    */
   put = async (url, data, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    try {
-      return this.axiosInstance.put(requestQueueItem.url, data, requestQueueItem.axiosConfig);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    return this.axiosInstance.put(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
    */
   delete = async (url, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest(url, null, options, authentication);
-    try {
-      return this.axiosInstance.delete(requestQueueItem.url, requestQueueItem.axiosConfig);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    return this.axiosInstance.delete(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
@@ -286,15 +277,11 @@ var ApiService = class {
       responseType: "blob"
     };
     let requestQueueItem = await this.createRequest(url, data, fullOptions, authentication);
-    try {
-      let response = await this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig);
-      this.doBrowserDownload(response);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    let response = await this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
+    this.doBrowserDownload(response);
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
@@ -305,15 +292,11 @@ var ApiService = class {
       responseType: "blob"
     };
     let requestQueueItem = await this.createRequest(url, null, fullOptions, authentication);
-    try {
-      let response = await this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig);
-      this.doBrowserDownload(response);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    let response = await this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
+    this.doBrowserDownload(response);
   };
   doBrowserDownload = (response) => {
     let downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
@@ -342,14 +325,10 @@ var ApiService = class {
       formData.append("file[" + i + "]", files[i]);
     }
     let requestQueueItem = await this.createRequest(url, formData, options, authentication);
-    try {
-      return this.axiosInstance.post(requestQueueItem.url, formData, requestQueueItem.axiosConfig);
-    } catch (e) {
-      if (e instanceof Error || e instanceof AxiosError) {
-        await this.apiErrorCatch(e);
-      }
+    return this.axiosInstance.post(requestQueueItem.url, formData, requestQueueItem.axiosConfig).catch(async (e) => {
+      await this.apiErrorCatch(e);
       throw e;
-    }
+    });
   };
 };
 var ApiService_default = ApiService;

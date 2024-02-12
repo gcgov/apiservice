@@ -1,10 +1,10 @@
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 declare class ApiError extends Error {
-    code: number;
+    code: number | string;
     data: any;
     guid: string;
-    constructor(message: string, code?: number, data?: any, guid?: string);
+    constructor(message: string, code?: number | string, data?: any, guid?: string);
 }
 
 declare class ApiAuthError extends ApiError {

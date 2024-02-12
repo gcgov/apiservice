@@ -1,11 +1,11 @@
 class ApiError extends Error {
-    public code: number = 0
+    public code: number|string = 0
     public data: any = {}
     public guid: string = ''
 
     constructor(
         message: string,
-        code: number = 0,
+        code: number|string = 0,
         data: any = {},
         guid: string = ''
     ) {
