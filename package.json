@@ -1,6 +1,6 @@
 {
 	"name": "@gcgov/apiservice",
-	"version": "1.2.5",
+	"version": "2.0.0",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
 	"main": "dist/ApiService.js",
 	"scripts": {
@@ -9,7 +9,6 @@
 	},
 	"dependencies": {
 		"@types/web": "^0.0.138",
-		"axios": "^1.6.7",
 		"lodash": "^4.17.21"
 	},
 	"devDependencies": {

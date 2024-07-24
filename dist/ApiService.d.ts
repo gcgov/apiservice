@@ -1,5 +1,3 @@
-import { AxiosRequestConfig, AxiosResponse } from 'axios';
-
 declare class ApiError extends Error {
     code: number | string;
     data: any;
@@ -24,23 +22,22 @@ declare class ApiRequestQueueItem {
     created: Date;
     url: string;
     data: any;
-    axiosConfig: AxiosRequestConfig;
+    config: RequestInit;
     abortController: AbortController;
     authentication: boolean;
-    constructor(id?: string, url?: string, data?: any, axiosConfig?: AxiosRequestConfig, abortController?: AbortController, authentication?: boolean);
+    constructor(id?: string, url?: string, data?: any, config?: RequestInit, abortController?: AbortController, authentication?: boolean);
 }
 
 declare class ApiAdvancedResponse {
     id: string;
-    response: Promise<AxiosResponse<any>>;
-    constructor(requestQueueItem: ApiRequestQueueItem, response: Promise<AxiosResponse<any>>);
+    response: Promise<Response>;
+    constructor(requestQueueItem: ApiRequestQueueItem, response: Promise<Response>);
 }
 
 declare class ApiService {
-    private serviceId;
+    private readonly serviceId;
     private config;
     private requestsQueue;
-    private axiosInstance;
     /**
      *
      * @param {ApiConfig} apiConfig
@@ -48,57 +45,57 @@ declare class ApiService {
     constructor(apiConfig: ApiConfig);
     private createRequest;
     private buildUrl;
-    private buildAxiosConfig;
+    private buildConfig;
     /**
      * Standardize error reporting up the stack to our ApiError
      * @param {Error} e
      * @throws {Error|ApiAuthError|ApiError}
      */
     private apiErrorCatch;
-    cancelRequest: (requestId?: string) => Promise<void>;
     cancelRequests: (requestIds?: string[]) => Promise<void>;
+    cancelRequest: (requestId?: string) => Promise<void>;
     cancelAll: () => Promise<void>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    getAdv: (url: string, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<ApiAdvancedResponse>;
+    getAdv: (url: string, options?: RequestInit, authentication?: boolean) => Promise<ApiAdvancedResponse>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    get: (url: string, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse>;
+    get: (url: string, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postAdv: (url: string, data: any, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<ApiAdvancedResponse>;
+    postAdv: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<ApiAdvancedResponse>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    post: (url: string, data: any, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse>;
+    post: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postForm: (url: string, data: any, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse>;
+    postForm: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    put: (url: string, data: any, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse>;
+    put: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    delete: (url: string, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse>;
+    delete: (url: string, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postDownload: (url: string, data: any, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<void>;
+    postDownload: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<void>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    getDownload: (url: string, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<void>;
+    getDownload: (url: string, options?: RequestInit, authentication?: boolean) => Promise<void>;
     private doBrowserDownload;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    upload: (url: string, files: Array<File>, options?: AxiosRequestConfig<any>, authentication?: boolean) => Promise<AxiosResponse<any, any>>;
+    upload: (url: string, files: Array<File>, options?: RequestInit, authentication?: boolean) => Promise<Response>;
 }
 
 export { ApiAdvancedResponse, ApiAuthError, ApiConfig, ApiError, ApiRequestQueueItem, ApiService as default };

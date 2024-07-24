@@ -1,13 +1,12 @@
 import ApiRequestQueueItem from "./ApiRequestQueueItem";
-import {AxiosResponse} from "axios";
 
 class ApiAdvancedResponse {
     public id: string
-    public response: Promise<AxiosResponse<any>>
+    public response: Promise<Response>
 
     constructor(
         requestQueueItem: ApiRequestQueueItem,
-        response: Promise<AxiosResponse<any>>
+        response: Promise<Response>
     ) {
         this.id = requestQueueItem.id
         this.response = response

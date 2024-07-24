@@ -5,7 +5,7 @@ class ApiRequestQueueItem {
     public created: Date
     public url: string
     public data: any
-    public axiosConfig: AxiosRequestConfig
+    public config: RequestInit
     public abortController: AbortController
     public authentication: boolean
 
@@ -14,7 +14,7 @@ class ApiRequestQueueItem {
         id: string = crypto.randomUUID(),
         url: string = '',
         data: any = null,
-        axiosConfig: AxiosRequestConfig = {},
+        config: RequestInit = {},
         abortController: AbortController = new AbortController(),
         authentication: boolean = true
     ) {
@@ -23,7 +23,7 @@ class ApiRequestQueueItem {
         this.url = url
         this.data = data
         this.authentication = authentication
-        this.axiosConfig = axiosConfig
+        this.config = config
         this.abortController = abortController
     }
 }

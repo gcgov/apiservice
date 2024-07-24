@@ -47,16 +47,16 @@ var ApiRequestQueueItem = class {
   created;
   url;
   data;
-  axiosConfig;
+  config;
   abortController;
   authentication;
-  constructor(id = crypto.randomUUID(), url = "", data = null, axiosConfig = {}, abortController = new AbortController(), authentication = true) {
+  constructor(id = crypto.randomUUID(), url = "", data = null, config = {}, abortController = new AbortController(), authentication = true) {
     this.id = id;
     this.created = /* @__PURE__ */ new Date();
     this.url = url;
     this.data = data;
     this.authentication = authentication;
-    this.axiosConfig = axiosConfig;
+    this.config = config;
     this.abortController = abortController;
   }
 };
@@ -74,13 +74,11 @@ var ApiAdvancedResponse = class {
 var ApiAdvancedResponse_default = ApiAdvancedResponse;
 
 // src/ApiService.ts
-import axios from "axios";
-import { trimEnd, isEmpty } from "lodash";
+import { trimEnd, isArray } from "lodash";
 var ApiService = class {
   serviceId = "";
   config;
   requestsQueue = {};
-  axiosInstance;
   /**
    *
    * @param {ApiConfig} apiConfig
@@ -88,26 +86,14 @@ var ApiService = class {
   constructor(apiConfig) {
     this.serviceId = crypto.randomUUID();
     this.config = apiConfig;
-    this.axiosInstance = axios.create();
-    this.axiosInstance.interceptors.response.use((response) => {
-      if (response.config?.headers?.["X-Request-Id"]) {
-        delete this.requestsQueue[response.config?.headers?.["X-Request-Id"]];
-      }
-      return response;
-    }, (error) => {
-      if (error.response?.config?.headers?.["X-Request-Id"]) {
-        delete this.requestsQueue[error.response?.config?.headers?.["X-Request-Id"]];
-      }
-      return Promise.reject(error);
-    });
     console.log("Constructed ApiService #" + this.serviceId + " for base url " + apiConfig.baseUrl);
   }
-  createRequest = async (urlPath, data = null, options = {}, authentication = true) => {
+  createRequest = async (method, urlPath, data = null, options = {}, authentication = true) => {
     const fullUrl = this.buildUrl(urlPath);
     const abortController = new AbortController();
     const requestId = crypto.randomUUID();
-    const axiosConfig = await this.buildAxiosConfig(options, abortController, authentication, requestId);
-    this.requestsQueue[requestId] = new ApiRequestQueueItem_default(requestId, fullUrl, data, axiosConfig, abortController, authentication);
+    const config = await this.buildConfig(method, options, data, abortController, authentication, requestId);
+    this.requestsQueue[requestId] = new ApiRequestQueueItem_default(requestId, fullUrl, data, config, abortController, authentication);
     return this.requestsQueue[requestId];
   };
   buildUrl(urlPath) {
@@ -125,27 +111,42 @@ var ApiService = class {
     }
     return trimEnd(this.config.baseUrl, "/") + "/" + cleanUrlPath + append;
   }
-  buildAxiosConfig = async (options = {}, abortController = null, authentication = true, requestId = crypto.randomUUID()) => {
+  buildConfig = async (method = "GET", options = {}, data = null, abortController = null, authentication = true, requestId = crypto.randomUUID()) => {
     let config = {
       ...options
     };
+    config.method = method;
     if (abortController instanceof AbortController) {
       config.signal = abortController.signal;
     }
-    if (typeof config.headers === "undefined") {
-      config.headers = {};
+    if (config.headers == void 0) {
+      config.headers = new Headers();
+    } else if (!(config.headers instanceof Headers)) {
+      const requestHeaders = new Headers();
+      if (isArray(config.headers)) {
+        for (let i = 0; i < config.headers.length; i++) {
+          requestHeaders.set(config.headers[i][0], config.headers[i][1]);
+        }
+      } else {
+        for (const key in config.headers) {
+          requestHeaders.set(key, config.headers[key]);
+        }
+      }
+      config.headers = requestHeaders;
     }
-    config.headers["X-Request-Id"] = requestId;
+    config.headers.set("X-Request-Id", requestId);
     if (authentication) {
       let accessToken = await this.config.getAccessTokenFn();
       if (accessToken === "" || accessToken === null) {
         console.log("empty access token");
         throw new ApiAuthError_default("Authentication failed", 401);
       }
-      if (typeof config.headers === "undefined") {
-        config.headers = {};
-      }
-      config.headers["Authorization"] = "Bearer " + accessToken;
+      config.headers.set("Authorization", "Bearer " + accessToken);
+    }
+    if (data instanceof FormData) {
+      config.body = data;
+    } else if (data !== null) {
+      config.body = JSON.stringify(data);
     }
     return config;
   };
@@ -155,34 +156,26 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   apiErrorCatch = async (e) => {
-    if (axios.isAxiosError(e)) {
-      const response = e?.response;
-      const request = e?.request;
-      const config = e?.config;
-      if (e.code === "ERR_NETWORK") {
-        throw new ApiError_default("Network connection problem", "1001");
-      } else if (e.code === "ERR_CANCELED") {
-        throw new ApiError_default("Request cancelled", "1000");
+    const response = e?.response;
+    const request = e?.request;
+    if (e.code === "ERR_NETWORK") {
+      throw new ApiError_default("Network connection problem", "1001");
+    } else if (e.code === "ERR_CANCELED") {
+      throw new ApiError_default("Request cancelled", "1000");
+    }
+    if (response && response.data && response.data.message) {
+      throw new ApiError_default(response.data.message, response.status, response.data);
+    } else if (response && response.status) {
+      throw new ApiError_default(e.message, response.status);
+    } else if (request && response && request.responseType === "blob" && response.data instanceof Blob && response.data.type && response.data.type.toLowerCase().includes("json")) {
+      let resolvedResponse = JSON.parse(await response.data.text());
+      if (resolvedResponse.message && resolvedResponse.status && resolvedResponse.data) {
+        throw new ApiError_default(resolvedResponse.message, resolvedResponse.status, resolvedResponse.data);
+      } else if (resolvedResponse.message && resolvedResponse.data) {
+        throw new ApiError_default(resolvedResponse.message, response.status, resolvedResponse.data);
       }
-      if (response && response.data && response.data.message) {
-        throw new ApiError_default(response.data.message, response.status, response.data);
-      } else if (response && response.status) {
-        throw new ApiError_default(e.message, response.status);
-      } else if (request && response && request.responseType === "blob" && response.data instanceof Blob && response.data.type && response.data.type.toLowerCase().includes("json")) {
-        let resolvedResponse = JSON.parse(await response.data.text());
-        if (resolvedResponse.message && resolvedResponse.status && resolvedResponse.data) {
-          throw new ApiError_default(resolvedResponse.message, resolvedResponse.status, resolvedResponse.data);
-        } else if (resolvedResponse.message && resolvedResponse.data) {
-          throw new ApiError_default(resolvedResponse.message, response.status, resolvedResponse.data);
-        }
-      }
-    } else if (e instanceof Error) {
-      throw e;
     }
     throw new ApiError_default("Unrecoverable error in local API service");
-  };
-  cancelRequest = async (requestId = "") => {
-    await this.cancelRequests([requestId]);
   };
   cancelRequests = async (requestIds = []) => {
     for (let i in requestIds) {
@@ -195,6 +188,9 @@ var ApiService = class {
       }
     }
   };
+  cancelRequest = async (requestId = "") => {
+    await this.cancelRequests([requestId]);
+  };
   cancelAll = async () => {
     await this.cancelRequests(Object.keys(this.requestsQueue));
   };
@@ -202,8 +198,10 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   getAdv = async (url, options = {}, authentication = true) => {
-    let requestQueueItem = await this.createRequest(url, null, options, authentication);
-    let responsePromise = this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+    const requestQueueItem = await this.createRequest("GET", url, null, options, authentication);
+    const responsePromise = fetch(requestQueueItem.url, requestQueueItem.config).then((response) => {
+      return response;
+    }).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
@@ -213,15 +211,15 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   get = async (url, options = {}, authentication = true) => {
-    let advResponse = await this.getAdv(url, options, authentication);
+    const advResponse = await this.getAdv(url, options, authentication);
     return advResponse.response;
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
    */
   postAdv = async (url, data, options = {}, authentication = true) => {
-    let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    let responsePromise = this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
+    let responsePromise = fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
@@ -238,12 +236,9 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   postForm = async (url, data, options = {}, authentication = true) => {
-    if (isEmpty(options.headers)) {
-      options.headers = {};
-    }
-    options.headers["Content-Type"] = "multipart/form-data";
-    let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    return this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
+    requestQueueItem.config.headers.set("Content-Type", "multipart/form-data");
+    return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
@@ -252,8 +247,8 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   put = async (url, data, options = {}, authentication = true) => {
-    let requestQueueItem = await this.createRequest(url, data, options, authentication);
-    return this.axiosInstance.put(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("PUT", url, data, options, authentication);
+    return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
@@ -262,8 +257,8 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   delete = async (url, options = {}, authentication = true) => {
-    let requestQueueItem = await this.createRequest(url, null, options, authentication);
-    return this.axiosInstance.delete(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("DELETE", url, null, options, authentication);
+    return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
@@ -272,39 +267,33 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   postDownload = async (url, data, options = {}, authentication = true) => {
-    let fullOptions = {
-      ...options,
-      responseType: "blob"
-    };
-    let requestQueueItem = await this.createRequest(url, data, fullOptions, authentication);
-    let response = await this.axiosInstance.post(requestQueueItem.url, data, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
+    let response = await fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
-    this.doBrowserDownload(response);
+    await this.doBrowserDownload(response);
   };
   /**
    * @throws {Error|ApiAuthError|ApiError}
    */
   getDownload = async (url, options = {}, authentication = true) => {
-    let fullOptions = {
-      ...options,
-      responseType: "blob"
-    };
-    let requestQueueItem = await this.createRequest(url, null, fullOptions, authentication);
-    let response = await this.axiosInstance.get(requestQueueItem.url, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("GET", url, null, options, authentication);
+    let response = await fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
-    this.doBrowserDownload(response);
+    await this.doBrowserDownload(response);
   };
-  doBrowserDownload = (response) => {
-    let downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+  doBrowserDownload = async (response) => {
+    const blobContent = await response.blob();
+    let downloadUrl = window.URL.createObjectURL(blobContent);
     let link = document.createElement("a");
     link.href = downloadUrl;
     let fileName = "file";
-    if (response.headers["content-disposition"]) {
-      let fileNameMatch = response.headers["content-disposition"].match(/filename=(.+)/);
+    let headerValue = response.headers.get("content-disposition");
+    if (headerValue) {
+      let fileNameMatch = headerValue.match(/filename=(.+)/);
       if (fileNameMatch && fileNameMatch.length === 2) {
         fileName = fileNameMatch[1].replaceAll(/["']/gi, "");
       } else if (fileNameMatch && fileNameMatch.length === 1) {
@@ -324,8 +313,8 @@ var ApiService = class {
     for (let i = 0; i < files.length; i++) {
       formData.append("file[" + i + "]", files[i]);
     }
-    let requestQueueItem = await this.createRequest(url, formData, options, authentication);
-    return this.axiosInstance.post(requestQueueItem.url, formData, requestQueueItem.axiosConfig).catch(async (e) => {
+    let requestQueueItem = await this.createRequest("POST", url, formData, options, authentication);
+    return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
