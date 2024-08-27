@@ -10,7 +10,7 @@ class ApiService {
 
     private readonly serviceId: string = ''
 
-    private config: ApiConfig
+    public config: ApiConfig
 
     private requestsQueue: { [key: string]: ApiRequestQueueItem } = {}
 
