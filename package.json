@@ -1,6 +1,6 @@
 {
 	"name": "@gcgov/apiservice",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
 	"main": "dist/ApiService.js",
 	"scripts": {
@@ -29,5 +29,6 @@
 	"bugs": {
 		"url": "https://github.com/gcgov/apiservice/issues"
 	},
-	"homepage": "https://github.com/gcgov/apiservice#readme"
+	"homepage": "https://github.com/gcgov/apiservice#readme",
+	"packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
 }

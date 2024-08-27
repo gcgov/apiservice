@@ -44,8 +44,8 @@ declare class ApiService {
      */
     constructor(apiConfig: ApiConfig);
     private createRequest;
-    private buildUrl;
-    private buildConfig;
+    buildUrl(urlPath: string): string;
+    buildConfig: (method?: string, options?: RequestInit, data?: any, abortController?: AbortController | null, authentication?: boolean, requestId?: string) => Promise<RequestInit>;
     /**
      * Standardize error reporting up the stack to our ApiError
      * @param {Error} e
