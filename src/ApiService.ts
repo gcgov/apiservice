@@ -46,7 +46,7 @@ class ApiService {
         return this.requestsQueue[requestId]
     }
 
-    private buildUrl(urlPath: string): string {
+    public buildUrl(urlPath: string): string {
         if (urlPath.substring(0, 4) === 'http') {
             return urlPath;
         }
@@ -64,7 +64,7 @@ class ApiService {
         return trimEnd(this.config.baseUrl, '/') + '/' + cleanUrlPath + append;
     }
 
-    private buildConfig = async (
+    public buildConfig = async (
         method: string = 'GET',
         options: RequestInit = {},
         data: any = null,
