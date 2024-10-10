@@ -36,7 +36,7 @@ declare class ApiAdvancedResponse {
 
 declare class ApiService {
     private readonly serviceId;
-    private config;
+    config: ApiConfig;
     private requestsQueue;
     /**
      *

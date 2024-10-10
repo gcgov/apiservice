@@ -5,6 +5,7 @@ import ApiConfig from "./ApiConfig";
 import ApiRequestQueueItem from "./ApiRequestQueueItem";
 import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import {trimEnd, isEmpty, isArray, isNumber} from "lodash"
+import ApiFetchError from "./ApiFetchError";
 
 class ApiService {
 
@@ -136,6 +137,7 @@ class ApiService {
      * @throws {Error|ApiAuthError|ApiError}
      */
     private apiErrorCatch = async (e: any): Promise<void> => {
+        console.log(e)
         const response = e?.response
         const request = e?.request
 
@@ -143,6 +145,12 @@ class ApiService {
             throw new ApiError('Network connection problem', '1001')
         } else if (e.code === 'ERR_CANCELED') {
             throw new ApiError('Request cancelled', '1000')
+        }
+
+        if (response) {
+            if(response.headers && response.headers.get('Content-Type').includes('application/json')) {
+                response.data = await response.json()
+            }
         }
 
         //pretty error from API
@@ -199,9 +207,16 @@ class ApiService {
         authentication: boolean = true
     ): Promise<ApiAdvancedResponse> => {
         const requestQueueItem: ApiRequestQueueItem = await this.createRequest('GET', url, null, options, authentication)
-        const responsePromise:Promise<Response> = fetch(requestQueueItem.url, requestQueueItem.config).then((response)=>{
 
-            return response
+        const request = new Request(requestQueueItem.url, requestQueueItem.config);
+
+        const responsePromise:Promise<Response> = fetch(request).then((response)=>{
+            if( response.ok ) {
+                return response
+            }
+            else {
+                throw new ApiFetchError(response.status+' '+response.statusText, response.status, request, response, {}, '22914417719b4809826c9d014fd2a978')
+            }
         }).catch(async (e) => {
             await this.apiErrorCatch(e);
             throw e;
@@ -232,10 +247,20 @@ class ApiService {
         authentication: boolean = true
     ): Promise<ApiAdvancedResponse> => {
         let requestQueueItem = await this.createRequest('POST', url, data, options, authentication)
-        let responsePromise: Promise<Response> = fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
+
+        const request = new Request(requestQueueItem.url, requestQueueItem.config);
+
+        const responsePromise:Promise<Response> = fetch(request).then((response)=> {
+            if (response.ok) {
+                return response
+            } else {
+                throw new ApiFetchError(response.status+' '+response.statusText, response.status, request, response, {}, '9517f34da9cc4930a5aa3c60fed3eb8e')
+            }
+        }).catch(async (e) => {
             await this.apiErrorCatch(e);
             throw e;
         });
+
         return new ApiAdvancedResponse(requestQueueItem, responsePromise);
 
     }

@@ -75,6 +75,30 @@ var ApiAdvancedResponse_default = ApiAdvancedResponse;
 
 // src/ApiService.ts
 import { trimEnd, isArray } from "lodash";
+
+// src/ApiFetchError.ts
+var ApiError2 = class _ApiError extends Error {
+  code = 0;
+  data = {};
+  request = void 0;
+  response = void 0;
+  guid = "";
+  constructor(message, code = 0, request = void 0, response = void 0, data = {}, guid = "") {
+    super(message);
+    this.name = this.constructor.name;
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, _ApiError);
+    }
+    this.code = code;
+    this.data = data;
+    this.request = request;
+    this.response = response;
+    this.guid = guid;
+  }
+};
+var ApiFetchError_default = ApiError2;
+
+// src/ApiService.ts
 var ApiService = class {
   serviceId = "";
   config;
@@ -156,12 +180,18 @@ var ApiService = class {
    * @throws {Error|ApiAuthError|ApiError}
    */
   apiErrorCatch = async (e) => {
+    console.log(e);
     const response = e?.response;
     const request = e?.request;
     if (e.code === "ERR_NETWORK") {
       throw new ApiError_default("Network connection problem", "1001");
     } else if (e.code === "ERR_CANCELED") {
       throw new ApiError_default("Request cancelled", "1000");
+    }
+    if (response) {
+      if (response.headers && response.headers.get("Content-Type").includes("application/json")) {
+        response.data = await response.json();
+      }
     }
     if (response && response.data && response.data.message) {
       throw new ApiError_default(response.data.message, response.status, response.data);
@@ -199,8 +229,13 @@ var ApiService = class {
    */
   getAdv = async (url, options = {}, authentication = true) => {
     const requestQueueItem = await this.createRequest("GET", url, null, options, authentication);
-    const responsePromise = fetch(requestQueueItem.url, requestQueueItem.config).then((response) => {
-      return response;
+    const request = new Request(requestQueueItem.url, requestQueueItem.config);
+    const responsePromise = fetch(request).then((response) => {
+      if (response.ok) {
+        return response;
+      } else {
+        throw new ApiFetchError_default(response.status + " " + response.statusText, response.status, request, response, {}, "22914417719b4809826c9d014fd2a978");
+      }
     }).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
@@ -219,7 +254,14 @@ var ApiService = class {
    */
   postAdv = async (url, data, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
-    let responsePromise = fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
+    const request = new Request(requestQueueItem.url, requestQueueItem.config);
+    const responsePromise = fetch(request).then((response) => {
+      if (response.ok) {
+        return response;
+      } else {
+        throw new ApiFetchError_default(response.status + " " + response.statusText, response.status, request, response, {}, "9517f34da9cc4930a5aa3c60fed3eb8e");
+      }
+    }).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
     });
