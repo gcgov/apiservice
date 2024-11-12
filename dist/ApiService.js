@@ -283,6 +283,20 @@ var ApiService = class {
   /**
    * @throws {Error|ApiAuthError|ApiError}
    */
+  getAllPaged = async (url, options = {}, authentication = true, page = 1, itemsPerPage = 100, collection = []) => {
+    const advResponse = await this.getAdv(url, options, authentication);
+    const apiResponse = await advResponse.response;
+    const apiResponseData = await apiResponse.json();
+    const pageCount = parseInt(apiResponse.headers.get("X-Page-Count") ?? "0");
+    collection.push(...apiResponseData);
+    if (pageCount > page) {
+      return await this.getAllPaged(url, options, authentication, page + 1, itemsPerPage, collection);
+    }
+    return collection;
+  };
+  /**
+   * @throws {Error|ApiAuthError|ApiError}
+   */
   postAdv = async (url, data, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
     const request = new Request(requestQueueItem.url, requestQueueItem.config);

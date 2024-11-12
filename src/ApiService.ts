@@ -237,6 +237,36 @@ class ApiService {
         return advResponse.response;
     }
 
+
+    /**
+     * @throws {Error|ApiAuthError|ApiError}
+     */
+    getAllPaged = async<T> (
+        url: string,
+        options: RequestInit = {},
+        authentication: boolean = true,
+        page: number = 1,
+        itemsPerPage: number = 100,
+        collection: Array<T> = []
+    ): Promise<Array<T>> => {
+        const advResponse: ApiAdvancedResponse = await this.getAdv(url, options, authentication)
+
+        const apiResponse = await advResponse.response
+        const apiResponseData: Array<T> = await apiResponse.json()
+
+        const pageCount: number = parseInt(apiResponse.headers.get('X-Page-Count') ?? '0')
+
+        //set data
+        collection.push(...apiResponseData)
+
+        //loop
+        if (pageCount > page) {
+            return await this.getAllPaged(url, options, authentication, page+1, itemsPerPage, collection)
+        }
+
+        return collection;
+    }
+
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */

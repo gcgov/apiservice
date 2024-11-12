@@ -66,6 +66,10 @@ declare class ApiService {
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
+    getAllPaged: <T>(url: string, options?: RequestInit, authentication?: boolean, page?: number, itemsPerPage?: number, collection?: T[]) => Promise<T[]>;
+    /**
+     * @throws {Error|ApiAuthError|ApiError}
+     */
     postAdv: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<ApiAdvancedResponse>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
