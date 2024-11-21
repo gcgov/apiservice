@@ -1,3 +1,7 @@
+import * as lodash from 'lodash';
+import { EntityTable } from 'dexie';
+import { Ref } from 'vue';
+
 declare class ApiError extends Error {
     code: number | string;
     data: any;
@@ -34,6 +38,75 @@ declare class ApiAdvancedResponse {
     constructor(requestQueueItem: ApiRequestQueueItem, response: Promise<Response>);
 }
 
+declare class UiStateError {
+    error: boolean;
+    errorCode: string | number;
+    errorMessage: string;
+    reset: () => void;
+}
+declare class UiState {
+    loading: boolean;
+    loadDialog: boolean;
+    loadingError: UiStateError;
+}
+interface IServerDataTableSortGroup {
+    key: string;
+    order?: boolean | 'asc' | 'desc';
+}
+type TServerDataTableFilters = Record<string, string | string[] | undefined | null>;
+interface IServerDataTableOptions {
+    filters?: TServerDataTableFilters | undefined;
+    page?: number | undefined;
+    itemsPerPage?: number | undefined;
+    sortBy?: IServerDataTableSortGroup[] | undefined;
+    groupBy?: IServerDataTableSortGroup[] | undefined;
+}
+declare class ServerDataTable<T extends {
+    _id: string;
+}> {
+    ui: Ref<UiState>;
+    private localStorageKey;
+    private baseUrl;
+    private appApiService;
+    private table;
+    itemsPerPage: Ref<number>;
+    page: Ref<number>;
+    totalItems: Ref<number>;
+    sortBy: Ref<IServerDataTableSortGroup[]>;
+    groupBy: Ref<IServerDataTableSortGroup[]>;
+    filters: Ref<TServerDataTableFilters | undefined>;
+    private defaultItemsPerPage;
+    private defaultPage;
+    private defaultSortBy;
+    private defaultGroupBy;
+    private defaultFilters;
+    private tableIndexes;
+    private currentTableIndexKey;
+    currentItems: Ref<T[]>;
+    /**
+     *
+     * @param id
+     * @param baseUrl
+     * @param appApiService
+     * @param table
+     * @param defaultOptions
+     * @param loadFromStorage optional - false by default. If true, will load current values from storage if available and use the values from defaultOptions if not.
+     */
+    constructor(id: string, baseUrl: string, appApiService: ApiService, table: EntityTable<T, '_id'>, defaultOptions?: IServerDataTableOptions | undefined, loadFromStorage?: boolean);
+    log: (message: string) => void;
+    updateValues: (options: IServerDataTableOptions) => Promise<void>;
+    updateValuesDebounced: lodash.DebouncedFunc<(options: IServerDataTableOptions) => Promise<void>>;
+    getForTable: (forceFromServer?: boolean) => Promise<Array<T>>;
+    updateFilters: (filters: TServerDataTableFilters | undefined, runChangeIfNeeded?: boolean, force?: boolean) => Promise<void>;
+    updateFiltersDebounced: lodash.DebouncedFunc<(filters: TServerDataTableFilters | undefined, runChangeIfNeeded?: boolean, force?: boolean) => Promise<void>>;
+    reset: () => Promise<void>;
+    resetFilters: () => Promise<void>;
+    getUrl: () => string;
+    getIndexKey: () => string;
+    resetIndexing: () => void;
+    private persistInStorage;
+}
+
 declare class ApiService {
     private readonly serviceId;
     config: ApiConfig;
@@ -66,7 +139,7 @@ declare class ApiService {
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    getAllPaged: <T>(url: string, options?: RequestInit, authentication?: boolean, page?: number, itemsPerPage?: number, collection?: T[]) => Promise<T[]>;
+    getAllPaged: <T>(url: string, options?: RequestInit, authentication?: boolean, page?: number, itemsPerPage?: number, collection?: Array<T>) => Promise<Array<T>>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
@@ -102,4 +175,4 @@ declare class ApiService {
     upload: (url: string, files: Array<File>, options?: RequestInit, authentication?: boolean) => Promise<Response>;
 }
 
-export { ApiAdvancedResponse, ApiAuthError, ApiConfig, ApiError, ApiRequestQueueItem, ApiService as default };
+export { ApiAdvancedResponse, ApiAuthError, ApiConfig, ApiError, ApiRequestQueueItem, type IServerDataTableOptions, type IServerDataTableSortGroup, ServerDataTable, type TServerDataTableFilters, ApiService as default };

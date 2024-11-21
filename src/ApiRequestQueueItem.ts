@@ -1,5 +1,3 @@
-import {AxiosRequestConfig} from "axios";
-
 class ApiRequestQueueItem {
     public id: string
     public created: Date

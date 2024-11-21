@@ -1,11 +1,11 @@
 import ApiError from "./ApiError";
 import ApiAuthError from "./ApiAuthError";
-// eslint-disable-next-line
 import ApiConfig from "./ApiConfig";
 import ApiRequestQueueItem from "./ApiRequestQueueItem";
 import ApiAdvancedResponse from "./ApiAdvancedResponse";
-import {trimEnd, isEmpty, isArray, isNumber} from "lodash"
+import {isArray, trimEnd} from "lodash"
 import ApiFetchError from "./ApiFetchError";
+import {ServerDataTable} from "./ApiServerDataTable"
 
 class ApiService {
 
@@ -88,19 +88,17 @@ class ApiService {
         }
 
         //standardize headers into Headers object
-        if(config.headers==undefined) {
+        if (config.headers == undefined) {
             config.headers = new Headers();
-        }
-        else if(!(config.headers instanceof Headers)) {
-            const requestHeaders =  new Headers();
-            if( isArray(config.headers) ) {
-                for(let i=0; i<config.headers.length; i++) {
-                    requestHeaders.set( config.headers[i][0], config.headers[i][1] )
+        } else if (!(config.headers instanceof Headers)) {
+            const requestHeaders = new Headers();
+            if (isArray(config.headers)) {
+                for (let i = 0; i < config.headers.length; i++) {
+                    requestHeaders.set(config.headers[i][0], config.headers[i][1])
                 }
-            }
-            else {
-                for(const key in config.headers) {
-                    requestHeaders.set( key, config.headers[key] )
+            } else {
+                for (const key in config.headers) {
+                    requestHeaders.set(key, config.headers[key])
                 }
             }
             config.headers = requestHeaders
@@ -121,11 +119,10 @@ class ApiService {
         }
 
         //add data to body
-        if(data instanceof FormData) {
+        if (data instanceof FormData) {
             config.body = data
-        }
-        else if(data!==null) {
-            config.body = JSON.stringify( data )
+        } else if (data !== null) {
+            config.body = JSON.stringify(data)
         }
 
         return config;
@@ -148,7 +145,7 @@ class ApiService {
         }
 
         if (response) {
-            if(response.headers && response.headers.get('Content-Type').includes('application/json')) {
+            if (response.headers && response.headers.get('Content-Type').includes('application/json')) {
                 response.data = await response.json()
             }
         }
@@ -210,12 +207,11 @@ class ApiService {
 
         const request = new Request(requestQueueItem.url, requestQueueItem.config);
 
-        const responsePromise:Promise<Response> = fetch(request).then((response)=>{
-            if( response.ok ) {
+        const responsePromise: Promise<Response> = fetch(request).then((response) => {
+            if (response.ok) {
                 return response
-            }
-            else {
-                throw new ApiFetchError(response.status+' '+response.statusText, response.status, request, response, {}, '22914417719b4809826c9d014fd2a978')
+            } else {
+                throw new ApiFetchError(response.status + ' ' + response.statusText, response.status, request, response, {}, '22914417719b4809826c9d014fd2a978')
             }
         }).catch(async (e) => {
             await this.apiErrorCatch(e);
@@ -241,7 +237,7 @@ class ApiService {
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    getAllPaged = async<T> (
+    getAllPaged = async <T>(
         url: string,
         options: RequestInit = {},
         authentication: boolean = true,
@@ -261,7 +257,7 @@ class ApiService {
 
         //loop
         if (pageCount > page) {
-            return await this.getAllPaged(url, options, authentication, page+1, itemsPerPage, collection)
+            return await this.getAllPaged(url, options, authentication, page + 1, itemsPerPage, collection)
         }
 
         return collection;
@@ -280,11 +276,11 @@ class ApiService {
 
         const request = new Request(requestQueueItem.url, requestQueueItem.config);
 
-        const responsePromise:Promise<Response> = fetch(request).then((response)=> {
+        const responsePromise: Promise<Response> = fetch(request).then((response) => {
             if (response.ok) {
                 return response
             } else {
-                throw new ApiFetchError(response.status+' '+response.statusText, response.status, request, response, {}, '9517f34da9cc4930a5aa3c60fed3eb8e')
+                throw new ApiFetchError(response.status + ' ' + response.statusText, response.status, request, response, {}, '9517f34da9cc4930a5aa3c60fed3eb8e')
             }
         }).catch(async (e) => {
             await this.apiErrorCatch(e);
@@ -404,7 +400,7 @@ class ApiService {
 
     private doBrowserDownload = async (response: Response): Promise<void> => {
         const blobContent = await response.blob()
-        let downloadUrl = window.URL.createObjectURL( blobContent );
+        let downloadUrl = window.URL.createObjectURL(blobContent);
         let link = document.createElement('a');
         link.href = downloadUrl;
         let fileName = 'file';
@@ -449,4 +445,7 @@ class ApiService {
 }
 
 export default ApiService;
-export {ApiConfig, ApiError, ApiAuthError, ApiAdvancedResponse, ApiRequestQueueItem}
+export {ApiConfig, ApiError, ApiAuthError, ApiAdvancedResponse, ApiRequestQueueItem, ServerDataTable}
+export {
+    type IServerDataTableSortGroup, type IServerDataTableOptions, type TServerDataTableFilters
+} from "./ApiServerDataTable"

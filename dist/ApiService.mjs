@@ -74,7 +74,7 @@ var ApiAdvancedResponse = class {
 var ApiAdvancedResponse_default = ApiAdvancedResponse;
 
 // src/ApiService.ts
-import { trimEnd, isArray } from "lodash";
+import { isArray, trimEnd } from "lodash";
 
 // src/ApiFetchError.ts
 var ApiError2 = class _ApiError extends Error {
@@ -97,6 +97,259 @@ var ApiError2 = class _ApiError extends Error {
   }
 };
 var ApiFetchError_default = ApiError2;
+
+// src/ApiServerDataTable.ts
+import { cloneDeep, debounce, upperCase } from "lodash";
+import { ref } from "vue";
+var UiStateError = class {
+  error = false;
+  errorCode = "";
+  errorMessage = "";
+  reset = () => {
+    this.error = false;
+    this.errorCode = "";
+    this.errorMessage = "";
+  };
+};
+var UiState = class {
+  loading = false;
+  loadDialog = false;
+  loadingError = new UiStateError();
+};
+var ServerDataTable = class {
+  //ui
+  ui = ref(new UiState());
+  //api/db
+  localStorageKey = "";
+  baseUrl = "";
+  appApiService;
+  table;
+  //table
+  itemsPerPage = ref(100);
+  page = ref(1);
+  totalItems = ref(0);
+  sortBy = ref([]);
+  groupBy = ref([]);
+  filters = ref(void 0);
+  defaultItemsPerPage = 100;
+  defaultPage = 1;
+  defaultSortBy = [];
+  defaultGroupBy = [];
+  defaultFilters = void 0;
+  //indexing
+  tableIndexes = {};
+  currentTableIndexKey = void 0;
+  currentItems = ref([]);
+  /**
+   *
+   * @param id
+   * @param baseUrl
+   * @param appApiService
+   * @param table
+   * @param defaultOptions
+   * @param loadFromStorage optional - false by default. If true, will load current values from storage if available and use the values from defaultOptions if not.
+   */
+  constructor(id, baseUrl, appApiService, table, defaultOptions = void 0, loadFromStorage = true) {
+    this.ui = ref(new UiState());
+    this.localStorageKey = upperCase(id);
+    this.baseUrl = baseUrl;
+    this.appApiService = appApiService;
+    this.table = table;
+    if (defaultOptions && defaultOptions.sortBy) {
+      this.defaultSortBy = cloneDeep(defaultOptions.sortBy);
+    }
+    if (defaultOptions && defaultOptions.groupBy) {
+      this.defaultGroupBy = cloneDeep(defaultOptions.groupBy);
+    }
+    if (defaultOptions && defaultOptions.filters) {
+      this.defaultFilters = cloneDeep(defaultOptions.filters);
+    }
+    if (defaultOptions && defaultOptions.itemsPerPage) {
+      this.defaultItemsPerPage = defaultOptions.itemsPerPage;
+    }
+    if (loadFromStorage && defaultOptions) {
+      const optionsStr = localStorage.getItem(this.localStorageKey);
+      if (optionsStr == null) {
+        return;
+      }
+      const storedOptions = JSON.parse(optionsStr);
+      this.filters.value = storedOptions.filters ?? cloneDeep(this.defaultFilters);
+      this.itemsPerPage.value = storedOptions.itemsPerPage ?? cloneDeep(this.defaultItemsPerPage);
+      this.sortBy.value = storedOptions.sortBy ?? cloneDeep(this.defaultSortBy);
+      this.groupBy.value = storedOptions.groupBy ?? cloneDeep(this.defaultGroupBy);
+    } else {
+      if (defaultOptions && defaultOptions.sortBy) {
+        this.sortBy.value = defaultOptions.sortBy;
+      }
+      if (defaultOptions && defaultOptions.groupBy) {
+        this.groupBy.value = defaultOptions.groupBy;
+      }
+      if (defaultOptions && defaultOptions.filters) {
+        this.filters.value = cloneDeep(defaultOptions.filters);
+      }
+      if (defaultOptions && defaultOptions.itemsPerPage) {
+        this.itemsPerPage.value = defaultOptions.itemsPerPage;
+      }
+      if (defaultOptions && defaultOptions.page) {
+        this.page.value = defaultOptions.page;
+      }
+    }
+    this.persistInStorage();
+  }
+  log = (message) => {
+    console.log(this.baseUrl + ": " + message);
+  };
+  updateValues = async (options) => {
+    this.log("update table values");
+    console.log(this.itemsPerPage.value);
+    console.log(options);
+    if (options.itemsPerPage) {
+      this.log("items per page not equal");
+      this.itemsPerPage.value = options.itemsPerPage;
+    }
+    if (options.page) {
+      this.log("page not equal");
+      this.page.value = options.page;
+    }
+    if (options.filters) {
+      this.log("filters not equal");
+      this.filters.value = cloneDeep(options.filters);
+    }
+    if (options.sortBy) {
+      this.log("sort by not equal");
+      this.sortBy.value = options.sortBy;
+    }
+    if (options.groupBy) {
+      this.log("group by not equal");
+      this.groupBy.value = options.groupBy;
+    }
+    this.persistInStorage();
+    this.log("get - options not equal");
+    await this.getForTable();
+  };
+  updateValuesDebounced = debounce(this.updateValues, 1e3);
+  getForTable = async (forceFromServer = false) => {
+    this.ui.value.loadingError.reset();
+    this.ui.value.loading = true;
+    this.currentTableIndexKey = this.getUrl();
+    const indexKey = this.currentTableIndexKey;
+    if (this.tableIndexes[indexKey]?.totalItems > 0 && !forceFromServer) {
+      this.totalItems.value = this.tableIndexes[indexKey].totalItems;
+      this.currentItems.value = await this.table.where("_id").anyOf(this.tableIndexes[indexKey].ids).toArray();
+      this.ui.value.loading = false;
+      return this.currentItems.value;
+    }
+    try {
+      this.log("get for table");
+      const apiAdvResponse = await this.appApiService.getAdv(this.getUrl());
+      this.log("await api response");
+      const apiResponse = await apiAdvResponse.response;
+      this.log("parse api response");
+      this.currentItems.value = await apiResponse.json();
+      this.log("save items to db");
+      this.table.bulkPut(cloneDeep(this.currentItems.value));
+      this.totalItems.value = parseInt(apiResponse.headers.get("x-total-count") ?? "0");
+      const ids = [];
+      for (const objectIndex in this.currentItems.value) {
+        ids.push(this.currentItems.value[objectIndex]._id);
+      }
+      this.tableIndexes[indexKey] = {
+        ids,
+        totalItems: this.totalItems.value
+      };
+      return this.currentItems.value;
+    } catch (e) {
+      this.ui.value.loadingError.error = true;
+      if (e instanceof Error) {
+        this.ui.value.loadingError.errorMessage = e.message;
+      }
+      if (e instanceof ApiError_default) {
+        this.ui.value.loadingError.errorCode = e.code ?? 500;
+      }
+      throw e;
+    } finally {
+      this.ui.value.loading = false;
+    }
+  };
+  updateFilters = async (filters, runChangeIfNeeded = true, force = true) => {
+    this.log("update filters");
+    const clonedNewFilters = cloneDeep(filters);
+    this.page.value = 1;
+    this.totalItems.value = 0;
+    this.filters.value = clonedNewFilters;
+    this.persistInStorage();
+    await this.getForTable();
+  };
+  updateFiltersDebounced = debounce(this.updateFilters, 1e3);
+  reset = async () => {
+    this.page.value = this.defaultPage;
+    this.totalItems.value = 0;
+    this.filters.value = cloneDeep(this.defaultFilters);
+    this.sortBy.value = cloneDeep(this.defaultSortBy);
+    this.groupBy.value = cloneDeep(this.defaultGroupBy);
+    this.itemsPerPage.value = this.defaultItemsPerPage;
+    await this.updateFilters(this.filters.value);
+  };
+  resetFilters = async () => {
+    this.filters.value = cloneDeep(this.defaultFilters);
+    await this.updateFilters(this.filters.value);
+  };
+  getUrl = () => {
+    const urlParts = [];
+    if (this.filters.value) {
+      for (const key in this.filters.value) {
+        if (this.filters.value[key] === null || this.filters.value[key] === void 0) {
+          continue;
+        }
+        if (Array.isArray(this.filters.value[key])) {
+          if (this.filters.value[key].length == 0) {
+            continue;
+          }
+          for (const i in this.filters[key]) {
+            if (this.filters.value[key] === null || this.filters.value[key] === void 0) {
+              continue;
+            }
+            urlParts.push(key + "[]=" + this.filters.value[key][i]);
+          }
+        } else {
+          urlParts.push(key + "=" + this.filters.value[key]);
+        }
+      }
+    }
+    if (this.groupBy.value) {
+      for (const groupBy of this.groupBy.value) {
+        urlParts.push("groupBy[]=" + groupBy.key + "|" + groupBy.order);
+      }
+    }
+    if (this.sortBy.value) {
+      for (const sortBy of this.sortBy.value) {
+        urlParts.push("sortBy[]=" + sortBy.key + "|" + sortBy.order);
+      }
+    }
+    const urlJoin = this.baseUrl.includes("?") ? "&" : "?";
+    return this.baseUrl + urlJoin + "limit=" + this.itemsPerPage.value + "&page=" + this.page.value + "&" + urlParts.join("&");
+  };
+  getIndexKey = () => {
+    return this.getUrl();
+  };
+  resetIndexing = () => {
+    this.tableIndexes = {};
+    this.currentTableIndexKey = void 0;
+  };
+  persistInStorage = () => {
+    const value = JSON.stringify({
+      filters: this.filters.value,
+      defaultFilters: this.defaultFilters,
+      itemsPerPage: this.itemsPerPage.value,
+      defaultItemsPerPage: this.defaultItemsPerPage,
+      sortBy: this.sortBy.value,
+      defaultSortBy: this.defaultSortBy,
+      groupBy: this.groupBy.value,
+      defaultGroupBy: this.defaultGroupBy
+    });
+    localStorage.setItem(this.localStorageKey, value);
+  };
+};
 
 // src/ApiService.ts
 var ApiService = class {
@@ -383,6 +636,7 @@ export {
   ApiConfig_default as ApiConfig,
   ApiError_default as ApiError,
   ApiRequestQueueItem_default as ApiRequestQueueItem,
+  ServerDataTable,
   ApiService_default as default
 };
 //# sourceMappingURL=ApiService.mjs.map
