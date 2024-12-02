@@ -99,7 +99,7 @@ var ApiError2 = class _ApiError extends Error {
 var ApiFetchError_default = ApiError2;
 
 // src/ApiServerDataTable.ts
-import { cloneDeep, debounce, upperCase } from "lodash";
+import { cloneDeep, debounce, intersection, upperCase } from "lodash";
 import { ref } from "vue";
 var UiStateError = class {
   error = false;
@@ -200,31 +200,29 @@ var ServerDataTable = class {
     console.log(this.baseUrl + ": " + message);
   };
   updateValues = async (options) => {
-    this.log("update table values");
-    console.log(this.itemsPerPage.value);
-    console.log(options);
+    console.log("update table values");
     if (options.itemsPerPage) {
-      this.log("items per page not equal");
+      console.log("items per page not equal");
       this.itemsPerPage.value = options.itemsPerPage;
     }
     if (options.page) {
-      this.log("page not equal");
+      console.log("page not equal");
       this.page.value = options.page;
     }
     if (options.filters) {
-      this.log("filters not equal");
+      console.log("filters not equal");
       this.filters.value = cloneDeep(options.filters);
     }
     if (options.sortBy) {
-      this.log("sort by not equal");
+      console.log("sort by not equal");
       this.sortBy.value = options.sortBy;
     }
     if (options.groupBy) {
-      this.log("group by not equal");
+      console.log("group by not equal");
       this.groupBy.value = options.groupBy;
     }
     this.persistInStorage();
-    this.log("get - options not equal");
+    console.log("get - options not equal");
     await this.getForTable();
   };
   updateValuesDebounced = debounce(this.updateValues, 1e3);
@@ -234,19 +232,28 @@ var ServerDataTable = class {
     this.currentTableIndexKey = this.getUrl();
     const indexKey = this.currentTableIndexKey;
     if (this.tableIndexes[indexKey]?.totalItems > 0 && !forceFromServer) {
+      console.log("return index from memory and items from db");
       this.totalItems.value = this.tableIndexes[indexKey].totalItems;
       this.currentItems.value = await this.table.where("_id").anyOf(this.tableIndexes[indexKey].ids).toArray();
       this.ui.value.loading = false;
       return this.currentItems.value;
     }
+    console.log(navigator.onLine);
+    if (!navigator.onLine) {
+      console.log("offline - get paginated items from db");
+      this.currentItems.value = await this.getForTableFromDb();
+      this.ui.value.loading = false;
+      return this.currentItems.value;
+    }
     try {
-      this.log("get for table");
-      const apiAdvResponse = await this.appApiService.getAdv(this.getUrl());
-      this.log("await api response");
+      const apiUrl = this.getUrl();
+      console.log("get for table");
+      const apiAdvResponse = await this.appApiService.getAdv(apiUrl);
+      console.log("await api response");
       const apiResponse = await apiAdvResponse.response;
-      this.log("parse api response");
+      console.log("parse api response");
       this.currentItems.value = await apiResponse.json();
-      this.log("save items to db");
+      console.log("save items to db");
       this.table.bulkPut(cloneDeep(this.currentItems.value));
       this.totalItems.value = parseInt(apiResponse.headers.get("x-total-count") ?? "0");
       const ids = [];
@@ -271,8 +278,67 @@ var ServerDataTable = class {
       this.ui.value.loading = false;
     }
   };
-  updateFilters = async (filters, runChangeIfNeeded = true, force = true) => {
-    this.log("update filters");
+  getForTableFromDb = async () => {
+    let matchingIdPromises = [];
+    let filterCount = 0;
+    if (this.filters.value) {
+      for (const key in this.filters.value) {
+        if (this.filters.value[key] === null || this.filters.value[key] === void 0 || this.filters.value[key] === "") {
+          continue;
+        }
+        filterCount++;
+        if (Array.isArray(this.filters.value[key])) {
+          if (this.filters.value[key].length == 0) {
+            continue;
+          }
+          for (const i in this.filters.value[key]) {
+            if (this.filters.value[key][i] === null || this.filters.value[key][i] === void 0 || this.filters.value[key][i] === "") {
+              continue;
+            }
+            matchingIdPromises.push(this.table.where(key).startsWithIgnoreCase(this.filters.value[key][i]).primaryKeys());
+          }
+        } else {
+          matchingIdPromises.push(this.table.where(key).startsWithIgnoreCase(this.filters.value[key]).primaryKeys());
+        }
+      }
+    }
+    if (filterCount === 0) {
+      matchingIdPromises.push(this.table.toCollection().primaryKeys());
+    }
+    let matchingIds = [];
+    for (const i in matchingIdPromises) {
+      matchingIds.push(...await matchingIdPromises[i]);
+    }
+    matchingIds = intersection(matchingIds);
+    console.log("matching ids:");
+    console.log(matchingIds);
+    let orderByField = "";
+    let orderByOrder = "asc";
+    if (this.sortBy.value.length > 0) {
+      orderByField = this.sortBy.value[0].key;
+      orderByOrder = this.sortBy.value[0].order;
+    }
+    const promises = [];
+    let collection = this.table.toCollection();
+    if (orderByField) {
+      collection = this.table.orderBy(orderByField);
+      if (!orderByOrder || orderByOrder === "desc") {
+        collection.reverse();
+      }
+    }
+    console.log("start getting");
+    await collection.until(() => promises.length >= this.itemsPerPage.value).eachPrimaryKey((id) => {
+      if (matchingIds.includes(id)) {
+        promises.push(this.table.get(id));
+      }
+    });
+    const result = await Promise.all(promises);
+    console.log(result);
+    console.log("return");
+    return result.filter((item) => item !== void 0);
+  };
+  updateFilters = async (filters) => {
+    console.log("update filters");
     const clonedNewFilters = cloneDeep(filters);
     this.page.value = 1;
     this.totalItems.value = 0;

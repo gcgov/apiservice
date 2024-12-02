@@ -97,8 +97,9 @@ declare class ServerDataTable<T extends {
     updateValues: (options: IServerDataTableOptions) => Promise<void>;
     updateValuesDebounced: lodash.DebouncedFunc<(options: IServerDataTableOptions) => Promise<void>>;
     getForTable: (forceFromServer?: boolean) => Promise<Array<T>>;
-    updateFilters: (filters: TServerDataTableFilters | undefined, runChangeIfNeeded?: boolean, force?: boolean) => Promise<void>;
-    updateFiltersDebounced: lodash.DebouncedFunc<(filters: TServerDataTableFilters | undefined, runChangeIfNeeded?: boolean, force?: boolean) => Promise<void>>;
+    private getForTableFromDb;
+    updateFilters: (filters: TServerDataTableFilters | undefined) => Promise<void>;
+    updateFiltersDebounced: lodash.DebouncedFunc<(filters: TServerDataTableFilters | undefined) => Promise<void>>;
     reset: () => Promise<void>;
     resetFilters: () => Promise<void>;
     getUrl: () => string;

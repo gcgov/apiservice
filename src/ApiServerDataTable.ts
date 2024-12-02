@@ -1,8 +1,8 @@
-import {cloneDeep, debounce, upperCase} from "lodash";
+import {cloneDeep, debounce, intersection, upperCase} from "lodash";
 import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import ApiError from "./ApiError";
 import ApiService from "./ApiService";
-import {EntityTable} from "dexie";
+import {EntityTable, IDType} from "dexie";
 import {Ref, ref} from "vue";
 
 export class UiStateError {
@@ -42,7 +42,6 @@ export interface IServerDataTableIndex {
     ids: string[],
     totalItems: number
 }
-
 
 export class ServerDataTable<T extends { _id: string }> {
     //ui
@@ -141,34 +140,31 @@ export class ServerDataTable<T extends { _id: string }> {
     }
 
     public updateValues = async (options: IServerDataTableOptions) => {
-        this.log('update table values')
-
-        console.log(this.itemsPerPage.value)
-        console.log(options)
+        console.log('update table values')
 
         if (options.itemsPerPage) {
-            this.log('items per page not equal')
+            console.log('items per page not equal')
             this.itemsPerPage.value = options.itemsPerPage
         }
         if (options.page) {
-            this.log('page not equal')
+            console.log('page not equal')
             this.page.value = options.page
         }
         if (options.filters) {
-            this.log('filters not equal')
+            console.log('filters not equal')
             this.filters.value = cloneDeep(options.filters)
         }
         if (options.sortBy) {
-            this.log('sort by not equal')
+            console.log('sort by not equal')
             this.sortBy.value = options.sortBy
         }
         if (options.groupBy) {
-            this.log('group by not equal')
+            console.log('group by not equal')
             this.groupBy.value = options.groupBy
         }
 
         this.persistInStorage()
-        this.log('get - options not equal')
+        console.log('get - options not equal')
         await this.getForTable()
     }
 
@@ -183,8 +179,9 @@ export class ServerDataTable<T extends { _id: string }> {
         this.currentTableIndexKey = this.getUrl()
         const indexKey: string = this.currentTableIndexKey
 
-        //return indexed items from db
+        //if in-memory index exists, return indexed items from db for the index
         if (this.tableIndexes[indexKey]?.totalItems > 0 && !forceFromServer) {
+            console.log('return index from memory and items from db')
             this.totalItems.value = this.tableIndexes[indexKey].totalItems
             this.currentItems.value = await this.table.where('_id').anyOf(this.tableIndexes[indexKey].ids).toArray()
 
@@ -193,20 +190,33 @@ export class ServerDataTable<T extends { _id: string }> {
             return this.currentItems.value
         }
 
+        console.log(navigator.onLine)
+
+        //if system is offline, do pagination from dexie
+        if (!navigator.onLine) {
+            console.log('offline - get paginated items from db')
+            this.currentItems.value = await this.getForTableFromDb()
+
+            this.ui.value.loading = false
+            return this.currentItems.value
+        }
+
         //get from api
         //api get for table method
         try {
-            this.log('get for table')
-            const apiAdvResponse: ApiAdvancedResponse = await this.appApiService.getAdv(this.getUrl())
+            const apiUrl = this.getUrl()
 
-            this.log('await api response')
+            console.log('get for table')
+            const apiAdvResponse: ApiAdvancedResponse = await this.appApiService.getAdv(apiUrl)
+
+            console.log('await api response')
             const apiResponse = await apiAdvResponse.response
 
-            this.log('parse api response')
+            console.log('parse api response')
             this.currentItems.value = await apiResponse.json()
 
             //store in db
-            this.log('save items to db')
+            console.log('save items to db')
 
             this.table.bulkPut(cloneDeep(this.currentItems.value))
 
@@ -239,24 +249,100 @@ export class ServerDataTable<T extends { _id: string }> {
 
     }
 
-    public updateFilters = async (filters: TServerDataTableFilters | undefined, runChangeIfNeeded: boolean = true, force: boolean = true) => {
-        this.log('update filters')
+    private getForTableFromDb = async (): Promise<Array<T>> => {
+        //manual pagination - in Dexie 5 this might be able to be simplified/improved
+
+        let matchingIdPromises: Promise<IDType<T, "_id">[]>[] = []
+        let filterCount = 0
+
+        if (this.filters.value) {
+            for (const key in this.filters.value) {
+                if (this.filters.value[key] === null || this.filters.value[key] === undefined || this.filters.value[key] === '') {
+                    continue
+                }
+
+                filterCount++
+
+                //array
+                if (Array.isArray(this.filters.value[key])) {
+                    if (this.filters.value[key].length == 0) {
+                        continue
+                    }
+
+                    for (const i in this.filters.value[key]) {
+                        if (this.filters.value[key][i] === null || this.filters.value[key][i] === undefined || this.filters.value[key][i] === '') {
+                            continue
+                        }
+                        matchingIdPromises.push(this.table.where(key).startsWithIgnoreCase(this.filters.value[key][i]).primaryKeys())
+                    }
+                }
+                //single value
+                else {
+                    matchingIdPromises.push(this.table.where(key).startsWithIgnoreCase(this.filters.value[key]).primaryKeys())
+                }
+            }
+        }
+
+        if(filterCount===0) {
+            matchingIdPromises.push(this.table.toCollection().primaryKeys())
+        }
+
+        //get ids that match
+        let matchingIds: string[] = []
+        for(const i in matchingIdPromises) {
+            matchingIds.push( ...await matchingIdPromises[i] )
+        }
+        matchingIds = intersection(matchingIds)
+        console.log('matching ids:')
+        console.log(matchingIds)
+
+        //generate order based on first sort category
+        let orderByField = ''
+        let orderByOrder: boolean | "asc" | "desc" | undefined = 'asc'
+        if (this.sortBy.value.length > 0) {
+            orderByField = this.sortBy.value[0].key
+            orderByOrder = this.sortBy.value[0].order
+        }
+
+        //get the items limited by page in order
+        const promises: Promise<T | undefined>[] = []; // to collect ids sorted by index;
+
+        // Use a sort index to query data:
+        let collection = this.table.toCollection()
+        if (orderByField) {
+            collection = this.table.orderBy(orderByField)
+            if(!orderByOrder || orderByOrder === 'desc') {
+                collection.reverse()
+            }
+        }
+
+        console.log('start getting')
+        await collection
+            .until(() => promises.length >= this.itemsPerPage.value)
+            .eachPrimaryKey((id: IDType<T, '_id'>) => {
+                if (matchingIds.includes(id)) {
+                    promises.push(this.table.get(id));
+                }
+            });
+
+        const result = await Promise.all(promises);
+
+        console.log(result)
+        console.log('return')
+        return result.filter((item) => item !== undefined)
+    }
+
+    public updateFilters = async (filters: TServerDataTableFilters | undefined) => {
+        console.log('update filters')
 
         //let change = false
         const clonedNewFilters = cloneDeep(filters)
-
-        //if (!isEqual(cloneDeep(this.filters.value), clonedNewFilters)) {
         this.page.value = 1
         this.totalItems.value = 0
         this.filters.value = clonedNewFilters
         this.persistInStorage()
-        //change = true
-        //}
 
-        //if ((change && runChangeIfNeeded) || force) {
-        //	console.log(cloneDeep(this.filters.value))
         await this.getForTable()
-        //}
     }
 
     public updateFiltersDebounced = debounce(this.updateFilters, 1000)
