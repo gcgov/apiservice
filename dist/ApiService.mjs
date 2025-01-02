@@ -100,7 +100,7 @@ var ApiFetchError_default = ApiError2;
 
 // src/ApiServerDataTable.ts
 import { cloneDeep, debounce, intersection, upperCase } from "lodash";
-import { nextTick, ref } from "vue";
+import { ref } from "vue";
 var UiStateError = class {
   error = false;
   errorCode = "";
@@ -190,8 +190,6 @@ var ServerDataTable = class {
       this.page.value = loadOptions.page;
     }
     this.persistInStorage();
-    nextTick(() => {
-    });
   }
   log = (message) => {
     console.log(this.baseUrl + ": " + message);

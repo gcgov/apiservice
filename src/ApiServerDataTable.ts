@@ -3,7 +3,7 @@ import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import ApiError from "./ApiError";
 import ApiService from "./ApiService";
 import {EntityTable, IDType} from "dexie";
-import {nextTick, Ref, ref} from "vue";
+import {Ref, ref} from "vue";
 
 export class UiStateError {
     error: boolean = false;
@@ -105,7 +105,7 @@ export class ServerDataTable<T extends { _id: string }> {
         let loadOptions = defaultOptions
         if (loadFromStorage) {
             const optionsStr = localStorage.getItem(this.localStorageKey)
-            if (optionsStr != null && optionsStr!='') {
+            if (optionsStr != null && optionsStr != '') {
                 loadOptions = JSON.parse(optionsStr)
             }
         }
@@ -128,7 +128,6 @@ export class ServerDataTable<T extends { _id: string }> {
 
 
         this.persistInStorage()
-        nextTick(() => {})
 
     }
 
@@ -280,14 +279,14 @@ export class ServerDataTable<T extends { _id: string }> {
             }
         }
 
-        if(filterCount===0) {
+        if (filterCount === 0) {
             matchingIdPromises.push(this.table.toCollection().primaryKeys())
         }
 
         //get ids that match
         let matchingIds: string[] = []
-        for(const i in matchingIdPromises) {
-            matchingIds.push( ...await matchingIdPromises[i] )
+        for (const i in matchingIdPromises) {
+            matchingIds.push(...await matchingIdPromises[i])
         }
         matchingIds = intersection(matchingIds)
         console.log('matching ids:')
@@ -308,7 +307,7 @@ export class ServerDataTable<T extends { _id: string }> {
         let collection = this.table.toCollection()
         if (orderByField) {
             collection = this.table.orderBy(orderByField)
-            if(!orderByOrder || orderByOrder === 'desc') {
+            if (!orderByOrder || orderByOrder === 'desc') {
                 collection.reverse()
             }
         }
@@ -398,7 +397,7 @@ export class ServerDataTable<T extends { _id: string }> {
         }
 
         const urlJoin = this.baseUrl.includes('?') ? '&' : '?';
-console.log(this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&'))
+        console.log(this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&'))
         return this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&')
     }
 
