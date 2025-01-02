@@ -3,7 +3,7 @@ import ApiAdvancedResponse from "./ApiAdvancedResponse";
 import ApiError from "./ApiError";
 import ApiService from "./ApiService";
 import {EntityTable, IDType} from "dexie";
-import {Ref, ref} from "vue";
+import {nextTick, Ref, ref} from "vue";
 
 export class UiStateError {
     error: boolean = false;
@@ -102,36 +102,33 @@ export class ServerDataTable<T extends { _id: string }> {
             this.defaultItemsPerPage = defaultOptions.itemsPerPage
         }
 
-        if (loadFromStorage && defaultOptions) {
+        let loadOptions = defaultOptions
+        if (loadFromStorage) {
             const optionsStr = localStorage.getItem(this.localStorageKey)
-            if (optionsStr == null) {
-                return
-            }
-            const storedOptions = JSON.parse(optionsStr)
-
-            this.filters.value = storedOptions.filters ?? cloneDeep(this.defaultFilters)
-            this.itemsPerPage.value = storedOptions.itemsPerPage ?? cloneDeep(this.defaultItemsPerPage)
-            this.sortBy.value = storedOptions.sortBy ?? cloneDeep(this.defaultSortBy)
-            this.groupBy.value = storedOptions.groupBy ?? cloneDeep(this.defaultGroupBy)
-        } else {
-            if (defaultOptions && defaultOptions.sortBy) {
-                this.sortBy.value = defaultOptions.sortBy
-            }
-            if (defaultOptions && defaultOptions.groupBy) {
-                this.groupBy.value = defaultOptions.groupBy
-            }
-            if (defaultOptions && defaultOptions.filters) {
-                this.filters.value = cloneDeep(defaultOptions.filters)
-            }
-            if (defaultOptions && defaultOptions.itemsPerPage) {
-                this.itemsPerPage.value = defaultOptions.itemsPerPage
-            }
-            if (defaultOptions && defaultOptions.page) {
-                this.page.value = defaultOptions.page
+            if (optionsStr != null && optionsStr!='') {
+                loadOptions = JSON.parse(optionsStr)
             }
         }
 
+        if (loadOptions && loadOptions.sortBy) {
+            this.sortBy.value = cloneDeep(loadOptions.sortBy)
+        }
+        if (loadOptions && loadOptions.groupBy) {
+            this.groupBy.value = cloneDeep(loadOptions.groupBy)
+        }
+        if (loadOptions && loadOptions.filters) {
+            this.filters.value = cloneDeep(loadOptions.filters)
+        }
+        if (loadOptions && loadOptions.itemsPerPage) {
+            this.itemsPerPage.value = loadOptions.itemsPerPage
+        }
+        if (loadOptions && loadOptions.page) {
+            this.page.value = loadOptions.page
+        }
+
+
         this.persistInStorage()
+        nextTick(() => {})
 
     }
 
