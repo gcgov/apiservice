@@ -371,7 +371,7 @@ var ServerDataTable = class {
           if (this.filters.value[key].length == 0) {
             continue;
           }
-          for (const i in this.filters[key]) {
+          for (const i in this.filters.value[key]) {
             if (this.filters.value[key] === null || this.filters.value[key] === void 0) {
               continue;
             }
@@ -393,6 +393,7 @@ var ServerDataTable = class {
       }
     }
     const urlJoin = this.baseUrl.includes("?") ? "&" : "?";
+    console.log(this.baseUrl + urlJoin + "limit=" + this.itemsPerPage.value + "&page=" + this.page.value + "&" + urlParts.join("&"));
     return this.baseUrl + urlJoin + "limit=" + this.itemsPerPage.value + "&page=" + this.page.value + "&" + urlParts.join("&");
   };
   getIndexKey = () => {

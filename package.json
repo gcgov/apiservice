@@ -6,7 +6,8 @@
 	"scripts": {
 		"build": "tsup",
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"lint": "eslint . --fix"
+		"lint": "eslint . --fix",
+		"yalc:publish": "tsup && yalc publish --push"
 	},
 	"dependencies": {
 		"@types/web": "^0.0.138",

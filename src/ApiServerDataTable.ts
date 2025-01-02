@@ -375,12 +375,11 @@ export class ServerDataTable<T extends { _id: string }> {
                         continue
                     }
 
-                    // @ts-expect-error known to be safe
-                    for (const i in this.filters[key]) {
+                    for (const i in this.filters.value[key]) {
                         if (this.filters.value[key] === null || this.filters.value[key] === undefined) {
                             continue;
                         }
-                        // @ts-expect-error known to be safe
+
                         urlParts.push(key + '[]=' + this.filters.value[key][i])
                     }
                 } else {
@@ -402,7 +401,7 @@ export class ServerDataTable<T extends { _id: string }> {
         }
 
         const urlJoin = this.baseUrl.includes('?') ? '&' : '?';
-
+console.log(this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&'))
         return this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&')
     }
 
