@@ -314,8 +314,11 @@ class ApiService {
         authentication: boolean = true
     ): Promise<Response> => {
         let requestQueueItem = await this.createRequest('POST', url, data, options, authentication)
+        console.log(requestQueueItem)
         //@ts-ignore - requestQueueItem.config.headers is always set to be a Headers() object
         requestQueueItem.config.headers.set('Content-Type', 'multipart/form-data')
+        //@ts-ignore - requestQueueItem.config.headers is always set to be a Headers() object
+        requestQueueItem.config.headers.set('Accept', '*/*')
         return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
             await this.apiErrorCatch(e);
             throw e;

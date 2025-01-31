@@ -608,7 +608,9 @@ var ApiService = class {
    */
   postForm = async (url, data, options = {}, authentication = true) => {
     let requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
+    console.log(requestQueueItem);
     requestQueueItem.config.headers.set("Content-Type", "multipart/form-data");
+    requestQueueItem.config.headers.set("Accept", "*/*");
     return fetch(requestQueueItem.url, requestQueueItem.config).catch(async (e) => {
       await this.apiErrorCatch(e);
       throw e;
