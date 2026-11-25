@@ -14,7 +14,7 @@
 		"yalc:publish": "tsup && yalc publish --push"
 	},
 	"dependencies": {
-		"@types/web": "^0.0.138",
+		"@types/web": "^0.0.367",
 		"dexie": "^4.0.10",
 		"lodash": "^4.17.21",
 		"vue": "^3.5.13"
