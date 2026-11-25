@@ -28,3 +28,16 @@ jobs:
       - run: npm ci
       # tsup builds dist and type-checks the source when it writes the declaration file.
       - run: npm run build
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Errors fail the job. Warnings, such as no-explicit-any, show in the log but do not fail it.
+      - run: npm run lint

@@ -176,4 +176,5 @@ declare class ApiService {
     upload: (url: string, files: Array<File>, options?: RequestInit, authentication?: boolean) => Promise<Response>;
 }
 
-export { ApiAdvancedResponse, ApiAuthError, ApiConfig, ApiError, ApiRequestQueueItem, type IServerDataTableOptions, type IServerDataTableSortGroup, ServerDataTable, type TServerDataTableFilters, ApiService as default };
+export { ApiAdvancedResponse, ApiAuthError, ApiConfig, ApiError, ApiRequestQueueItem, ServerDataTable, ApiService as default };
+export type { IServerDataTableOptions, IServerDataTableSortGroup, TServerDataTableFilters };
