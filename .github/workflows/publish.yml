@@ -1,5 +1,9 @@
 name: Publish to npm
 
+# Publishes the package to npm with trusted publishing, so the repository stores no npm token.
+# A GitHub release that a person publishes starts this workflow. The Dependabot merge and release
+# workflow starts it with workflow_dispatch, because a release that GITHUB_TOKEN makes starts no workflows.
+
 on:
   release:
     types: [published]
@@ -23,12 +27,12 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
 
       # Node 24 ships npm 11, which supports trusted publishing.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
