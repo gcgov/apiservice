@@ -1,0 +1,26 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # This is a library. The lockfile pins the versions for CI and releases, but an application that
+    # installs this package resolves the ranges in package.json. The default strategy for a library
+    # only widens a range, so a range such as ^4.0.10 gets a pull request for a new major version only.
+    # "increase" raises the floor of the range (^4.0.10 to ^4.1.0), so each new minor or patch version
+    # gets a pull request too.
+    versioning-strategy: increase
+    groups:
+      # One pull request, and so one release, for all the minor and patch updates of a week.
+      # Security updates and major updates still get a pull request of their own.
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions-minor-and-patch:
+        update-types: [minor, patch]

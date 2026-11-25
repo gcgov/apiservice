@@ -15,10 +15,11 @@ class ApiError extends Error {
         this.name = this.constructor.name;
 
         // Maintains proper stack trace for where our error was thrown (only available on V8)
-        // @ts-expect-error v8 only
-        if (Error.captureStackTrace) {
-            // @ts-expect-error v8 only
-            Error.captureStackTrace(this, ApiError)
+        const v8Error = Error as ErrorConstructor & {
+            captureStackTrace?: (targetObject: object, constructorOpt?: unknown) => void
+        }
+        if (v8Error.captureStackTrace) {
+            v8Error.captureStackTrace(this, ApiError)
         }
 
         // Custom debugging information

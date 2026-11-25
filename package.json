@@ -3,6 +3,10 @@
 	"version": "2.3.8",
 	"description": "Extendable class that provides default rest API methods built upon Axios",
 	"main": "dist/ApiService.mjs",
+	"files": [
+		"dist",
+		"src"
+	],
 	"scripts": {
 		"build": "tsup",
 		"test": "echo \"Error: no test specified\" && exit 1",
@@ -36,6 +40,5 @@
 	"bugs": {
 		"url": "https://github.com/gcgov/apiservice/issues"
 	},
-	"homepage": "https://github.com/gcgov/apiservice#readme",
-	"packageManager": "yarn@4.5.0"
+	"homepage": "https://github.com/gcgov/apiservice#readme"
 }

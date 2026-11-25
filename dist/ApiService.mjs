@@ -6,8 +6,9 @@ var ApiError = class _ApiError extends Error {
   constructor(message, code = 0, data = {}, guid = "") {
     super(message);
     this.name = this.constructor.name;
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, _ApiError);
+    const v8Error = Error;
+    if (v8Error.captureStackTrace) {
+      v8Error.captureStackTrace(this, _ApiError);
     }
     this.code = code;
     this.data = data;
