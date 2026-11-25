@@ -248,7 +248,7 @@ export class ServerDataTable<T extends { _id: string }> {
     private getForTableFromDb = async (): Promise<Array<T>> => {
         //manual pagination - in Dexie 5 this might be able to be simplified/improved
 
-        let matchingIdPromises: Promise<IDType<T, "_id">[]>[] = []
+        const matchingIdPromises: Promise<IDType<T, "_id">[]>[] = []
         let filterCount = 0
 
         if (this.filters.value) {
