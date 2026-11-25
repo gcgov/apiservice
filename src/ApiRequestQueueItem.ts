@@ -2,7 +2,7 @@ class ApiRequestQueueItem {
     public id: string
     public created: Date
     public url: string
-    public data: any
+    public data: unknown
     public config: RequestInit
     public abortController: AbortController
     public authentication: boolean
@@ -11,7 +11,7 @@ class ApiRequestQueueItem {
     constructor(
         id: string = crypto.randomUUID(),
         url: string = '',
-        data: any = null,
+        data: unknown = null,
         config: RequestInit = {},
         abortController: AbortController = new AbortController(),
         authentication: boolean = true

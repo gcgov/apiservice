@@ -1,12 +1,19 @@
-class ApiError extends Error {
+/**
+ * An error from the API or the API service.
+ *
+ * TData is the type of the error data. It is unknown by default, because the data comes from the
+ * API response. Pass a type to describe the data your API returns, for example
+ * `e as ApiError<{ message: string, fields: string[] }>`.
+ */
+class ApiError<TData = unknown> extends Error {
     public code: number|string = 0
-    public data: any = {}
+    public data: TData
     public guid: string = ''
 
     constructor(
         message: string,
         code: number|string = 0,
-        data: any = {},
+        data: TData = {} as TData,
         guid: string = ''
     ) {
         // Pass remaining arguments (including vendor specific ones) to parent constructor

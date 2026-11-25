@@ -126,41 +126,33 @@ export class ServerDataTable<T extends { _id: string }> {
             this.page.value = loadOptions.page
         }
 
-
         this.persistInStorage()
 
     }
 
     public log = (message: string): void => {
-        console.log(this.baseUrl + ': ' + message)
+        console.info(this.baseUrl + ': ' + message)
     }
 
     public updateValues = async (options: IServerDataTableOptions) => {
-        console.log('update table values')
 
         if (options.itemsPerPage) {
-            console.log('items per page not equal')
             this.itemsPerPage.value = options.itemsPerPage
         }
         if (options.page) {
-            console.log('page not equal')
             this.page.value = options.page
         }
         if (options.filters) {
-            console.log('filters not equal')
             this.filters.value = cloneDeep(options.filters)
         }
         if (options.sortBy) {
-            console.log('sort by not equal')
             this.sortBy.value = options.sortBy
         }
         if (options.groupBy) {
-            console.log('group by not equal')
             this.groupBy.value = options.groupBy
         }
 
         this.persistInStorage()
-        console.log('get - options not equal')
         await this.getForTable()
     }
 
@@ -177,7 +169,6 @@ export class ServerDataTable<T extends { _id: string }> {
 
         //if in-memory index exists, return indexed items from db for the index
         if (this.tableIndexes[indexKey]?.totalItems > 0 && !forceFromServer) {
-            console.log('return index from memory and items from db')
             this.totalItems.value = this.tableIndexes[indexKey].totalItems
             this.currentItems.value = await this.table.where('_id').anyOf(this.tableIndexes[indexKey].ids).toArray()
 
@@ -186,11 +177,8 @@ export class ServerDataTable<T extends { _id: string }> {
             return this.currentItems.value
         }
 
-        console.log(navigator.onLine)
-
         //if system is offline, do pagination from dexie
         if (!navigator.onLine) {
-            console.log('offline - get paginated items from db')
             this.currentItems.value = await this.getForTableFromDb()
 
             this.ui.value.loading = false
@@ -202,17 +190,13 @@ export class ServerDataTable<T extends { _id: string }> {
         try {
             const apiUrl = this.getUrl()
 
-            console.log('get for table')
             const apiAdvResponse: ApiAdvancedResponse = await this.appApiService.getAdv(apiUrl)
 
-            console.log('await api response')
             const apiResponse = await apiAdvResponse.response
 
-            console.log('parse api response')
             this.currentItems.value = await apiResponse.json()
 
             //store in db
-            console.log('save items to db')
 
             this.table.bulkPut(cloneDeep(this.currentItems.value))
 
@@ -289,8 +273,6 @@ export class ServerDataTable<T extends { _id: string }> {
             matchingIds.push(...await matchingIdPromises[i])
         }
         matchingIds = intersection(matchingIds)
-        console.log('matching ids:')
-        console.log(matchingIds)
 
         //generate order based on first sort category
         let orderByField = ''
@@ -312,7 +294,6 @@ export class ServerDataTable<T extends { _id: string }> {
             }
         }
 
-        console.log('start getting')
         await collection
             .until(() => promises.length >= this.itemsPerPage.value)
             .eachPrimaryKey((id: IDType<T, '_id'>) => {
@@ -323,13 +304,10 @@ export class ServerDataTable<T extends { _id: string }> {
 
         const result = await Promise.all(promises);
 
-        console.log(result)
-        console.log('return')
         return result.filter((item) => item !== undefined)
     }
 
     public updateFilters = async (filters: TServerDataTableFilters | undefined) => {
-        console.log('update filters')
 
         //let change = false
         const clonedNewFilters = cloneDeep(filters)
@@ -397,7 +375,6 @@ export class ServerDataTable<T extends { _id: string }> {
         }
 
         const urlJoin = this.baseUrl.includes('?') ? '&' : '?';
-        console.log(this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&'))
         return this.baseUrl + urlJoin + 'limit=' + this.itemsPerPage.value + '&page=' + this.page.value + '&' + urlParts.join('&')
     }
 
@@ -423,6 +400,5 @@ export class ServerDataTable<T extends { _id: string }> {
         })
         localStorage.setItem(this.localStorageKey, value)
     }
-
 
 }

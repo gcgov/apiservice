@@ -1,7 +1,7 @@
 // src/ApiError.ts
 var ApiError = class _ApiError extends Error {
   code = 0;
-  data = {};
+  data;
   guid = "";
   constructor(message, code = 0, data = {}, guid = "") {
     super(message);
@@ -80,15 +80,16 @@ import { isArray, trimEnd } from "lodash";
 // src/ApiFetchError.ts
 var ApiError2 = class _ApiError extends Error {
   code = 0;
-  data = {};
+  data;
   request = void 0;
   response = void 0;
   guid = "";
   constructor(message, code = 0, request = void 0, response = void 0, data = {}, guid = "") {
     super(message);
     this.name = this.constructor.name;
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, _ApiError);
+    const v8Error = Error;
+    if (v8Error.captureStackTrace) {
+      v8Error.captureStackTrace(this, _ApiError);
     }
     this.code = code;
     this.data = data;
@@ -193,32 +194,25 @@ var ServerDataTable = class {
     this.persistInStorage();
   }
   log = (message) => {
-    console.log(this.baseUrl + ": " + message);
+    console.info(this.baseUrl + ": " + message);
   };
   updateValues = async (options) => {
-    console.log("update table values");
     if (options.itemsPerPage) {
-      console.log("items per page not equal");
       this.itemsPerPage.value = options.itemsPerPage;
     }
     if (options.page) {
-      console.log("page not equal");
       this.page.value = options.page;
     }
     if (options.filters) {
-      console.log("filters not equal");
       this.filters.value = cloneDeep(options.filters);
     }
     if (options.sortBy) {
-      console.log("sort by not equal");
       this.sortBy.value = options.sortBy;
     }
     if (options.groupBy) {
-      console.log("group by not equal");
       this.groupBy.value = options.groupBy;
     }
     this.persistInStorage();
-    console.log("get - options not equal");
     await this.getForTable();
   };
   updateValuesDebounced = debounce(this.updateValues, 1e3);
@@ -228,28 +222,21 @@ var ServerDataTable = class {
     this.currentTableIndexKey = this.getUrl();
     const indexKey = this.currentTableIndexKey;
     if (this.tableIndexes[indexKey]?.totalItems > 0 && !forceFromServer) {
-      console.log("return index from memory and items from db");
       this.totalItems.value = this.tableIndexes[indexKey].totalItems;
       this.currentItems.value = await this.table.where("_id").anyOf(this.tableIndexes[indexKey].ids).toArray();
       this.ui.value.loading = false;
       return this.currentItems.value;
     }
-    console.log(navigator.onLine);
     if (!navigator.onLine) {
-      console.log("offline - get paginated items from db");
       this.currentItems.value = await this.getForTableFromDb();
       this.ui.value.loading = false;
       return this.currentItems.value;
     }
     try {
       const apiUrl = this.getUrl();
-      console.log("get for table");
       const apiAdvResponse = await this.appApiService.getAdv(apiUrl);
-      console.log("await api response");
       const apiResponse = await apiAdvResponse.response;
-      console.log("parse api response");
       this.currentItems.value = await apiResponse.json();
-      console.log("save items to db");
       this.table.bulkPut(cloneDeep(this.currentItems.value));
       this.totalItems.value = parseInt(apiResponse.headers.get("x-total-count") ?? "0");
       const ids = [];
@@ -306,8 +293,6 @@ var ServerDataTable = class {
       matchingIds.push(...await matchingIdPromises[i]);
     }
     matchingIds = intersection(matchingIds);
-    console.log("matching ids:");
-    console.log(matchingIds);
     let orderByField = "";
     let orderByOrder = "asc";
     if (this.sortBy.value.length > 0) {
@@ -322,19 +307,15 @@ var ServerDataTable = class {
         collection.reverse();
       }
     }
-    console.log("start getting");
     await collection.until(() => promises.length >= this.itemsPerPage.value).eachPrimaryKey((id) => {
       if (matchingIds.includes(id)) {
         promises.push(this.table.get(id));
       }
     });
     const result = await Promise.all(promises);
-    console.log(result);
-    console.log("return");
     return result.filter((item) => item !== void 0);
   };
   updateFilters = async (filters) => {
-    console.log("update filters");
     const clonedNewFilters = cloneDeep(filters);
     this.page.value = 1;
     this.totalItems.value = 0;
@@ -389,7 +370,6 @@ var ServerDataTable = class {
       }
     }
     const urlJoin = this.baseUrl.includes("?") ? "&" : "?";
-    console.log(this.baseUrl + urlJoin + "limit=" + this.itemsPerPage.value + "&page=" + this.page.value + "&" + urlParts.join("&"));
     return this.baseUrl + urlJoin + "limit=" + this.itemsPerPage.value + "&page=" + this.page.value + "&" + urlParts.join("&");
   };
   getIndexKey = () => {
@@ -426,7 +406,6 @@ var ApiService = class {
   constructor(apiConfig) {
     this.serviceId = crypto.randomUUID();
     this.config = apiConfig;
-    console.log("Constructed ApiService #" + this.serviceId + " for base url " + apiConfig.baseUrl);
   }
   createRequest = async (method, urlPath, data = null, options = {}, authentication = true) => {
     const fullUrl = this.buildUrl(urlPath);
@@ -478,7 +457,7 @@ var ApiService = class {
     if (authentication) {
       const accessToken = await this.config.getAccessTokenFn();
       if (accessToken === "" || accessToken === null) {
-        console.log("empty access token");
+        console.warn("empty access token");
         throw new ApiAuthError_default("Authentication failed", 401);
       }
       config.headers.set("Authorization", "Bearer " + accessToken);
@@ -492,33 +471,28 @@ var ApiService = class {
   };
   /**
    * Standardize error reporting up the stack to our ApiError
-   * @param {Error} e
+   * @param e the value that fetch or the response check rejected with
    * @throws {Error|ApiAuthError|ApiError}
    */
   apiErrorCatch = async (e) => {
-    console.log(e);
-    const response = e?.response;
-    const request = e?.request;
-    if (e.code === "ERR_NETWORK") {
+    console.error(e);
+    const error = typeof e === "object" && e !== null ? e : {};
+    if (error.code === "ERR_NETWORK") {
       throw new ApiError_default("Network connection problem", "1001");
-    } else if (e.code === "ERR_CANCELED") {
+    } else if (error.code === "ERR_CANCELED") {
       throw new ApiError_default("Request cancelled", "1000");
     }
-    if (response) {
-      if (response.headers && response.headers.get("Content-Type").includes("application/json")) {
-        response.data = await response.json();
+    if (error.response instanceof Response) {
+      const response = error.response;
+      let data = void 0;
+      if (response.headers.get("Content-Type")?.includes("application/json")) {
+        data = await response.json();
       }
-    }
-    if (response && response.data && response.data.message) {
-      throw new ApiError_default(response.data.message, response.status, response.data);
-    } else if (response && response.status) {
-      throw new ApiError_default(e.message, response.status);
-    } else if (request && response && request.responseType === "blob" && response.data instanceof Blob && response.data.type && response.data.type.toLowerCase().includes("json")) {
-      const resolvedResponse = JSON.parse(await response.data.text());
-      if (resolvedResponse.message && resolvedResponse.status && resolvedResponse.data) {
-        throw new ApiError_default(resolvedResponse.message, resolvedResponse.status, resolvedResponse.data);
-      } else if (resolvedResponse.message && resolvedResponse.data) {
-        throw new ApiError_default(resolvedResponse.message, response.status, resolvedResponse.data);
+      if (typeof data === "object" && data !== null && "message" in data && typeof data.message === "string" && data.message !== "") {
+        throw new ApiError_default(data.message, response.status, data);
+      }
+      if (response.status) {
+        throw new ApiError_default(typeof error.message === "string" ? error.message : "", response.status);
       }
     }
     throw new ApiError_default("Unrecoverable error in local API service");
@@ -609,7 +583,6 @@ var ApiService = class {
    */
   postForm = async (url, data, options = {}, authentication = true) => {
     const requestQueueItem = await this.createRequest("POST", url, data, options, authentication);
-    console.log(requestQueueItem);
     const headers = requestQueueItem.config.headers;
     headers.set("Content-Type", "multipart/form-data");
     headers.set("Accept", "*/*");

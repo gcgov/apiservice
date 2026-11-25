@@ -2,15 +2,22 @@ import * as lodash from 'lodash';
 import { EntityTable } from 'dexie';
 import { Ref } from 'vue';
 
-declare class ApiError extends Error {
+/**
+ * An error from the API or the API service.
+ *
+ * TData is the type of the error data. It is unknown by default, because the data comes from the
+ * API response. Pass a type to describe the data your API returns, for example
+ * `e as ApiError<{ message: string, fields: string[] }>`.
+ */
+declare class ApiError<TData = unknown> extends Error {
     code: number | string;
-    data: any;
+    data: TData;
     guid: string;
-    constructor(message: string, code?: number | string, data?: any, guid?: string);
+    constructor(message: string, code?: number | string, data?: TData, guid?: string);
 }
 
-declare class ApiAuthError extends ApiError {
-    constructor(message: string, code?: number, data?: any, guid?: string);
+declare class ApiAuthError<TData = unknown> extends ApiError<TData> {
+    constructor(message: string, code?: number, data?: TData, guid?: string);
 }
 
 declare class ApiConfig {
@@ -25,11 +32,11 @@ declare class ApiRequestQueueItem {
     id: string;
     created: Date;
     url: string;
-    data: any;
+    data: unknown;
     config: RequestInit;
     abortController: AbortController;
     authentication: boolean;
-    constructor(id?: string, url?: string, data?: any, config?: RequestInit, abortController?: AbortController, authentication?: boolean);
+    constructor(id?: string, url?: string, data?: unknown, config?: RequestInit, abortController?: AbortController, authentication?: boolean);
 }
 
 declare class ApiAdvancedResponse {
@@ -119,10 +126,10 @@ declare class ApiService {
     constructor(apiConfig: ApiConfig);
     private createRequest;
     buildUrl(urlPath: string): string;
-    buildConfig: (method?: string, options?: RequestInit, data?: any, abortController?: AbortController | null, authentication?: boolean, requestId?: string) => Promise<RequestInit>;
+    buildConfig: (method?: string, options?: RequestInit, data?: unknown, abortController?: AbortController | null, authentication?: boolean, requestId?: string) => Promise<RequestInit>;
     /**
      * Standardize error reporting up the stack to our ApiError
-     * @param {Error} e
+     * @param e the value that fetch or the response check rejected with
      * @throws {Error|ApiAuthError|ApiError}
      */
     private apiErrorCatch;
@@ -144,19 +151,19 @@ declare class ApiService {
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postAdv: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<ApiAdvancedResponse>;
+    postAdv: (url: string, data: unknown, options?: RequestInit, authentication?: boolean) => Promise<ApiAdvancedResponse>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    post: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
+    post: (url: string, data: unknown, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postForm: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
+    postForm: (url: string, data: unknown, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    put: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<Response>;
+    put: (url: string, data: unknown, options?: RequestInit, authentication?: boolean) => Promise<Response>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
@@ -164,7 +171,7 @@ declare class ApiService {
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */
-    postDownload: (url: string, data: any, options?: RequestInit, authentication?: boolean) => Promise<void>;
+    postDownload: (url: string, data: unknown, options?: RequestInit, authentication?: boolean) => Promise<void>;
     /**
      * @throws {Error|ApiAuthError|ApiError}
      */

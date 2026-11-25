@@ -1,6 +1,6 @@
-class ApiError extends Error {
+class ApiError<TData = unknown> extends Error {
     public code: number|string = 0
-    public data: any = {}
+    public data: TData
     public request: Request|undefined = undefined
     public response: Response|undefined = undefined
     public guid: string = ''
@@ -10,7 +10,7 @@ class ApiError extends Error {
         code: number|string = 0,
         request: Request|undefined = undefined,
         response: Response|undefined = undefined,
-        data: any = {},
+        data: TData = {} as TData,
         guid: string = ''
     ) {
         // Pass remaining arguments (including vendor specific ones) to parent constructor
@@ -19,8 +19,11 @@ class ApiError extends Error {
         this.name = this.constructor.name;
 
         // Maintains proper stack trace for where our error was thrown (only available on V8)
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, ApiError)
+        const v8Error = Error as ErrorConstructor & {
+            captureStackTrace?: (targetObject: object, constructorOpt?: unknown) => void
+        }
+        if (v8Error.captureStackTrace) {
+            v8Error.captureStackTrace(this, ApiError)
         }
 
         // Custom debugging information
