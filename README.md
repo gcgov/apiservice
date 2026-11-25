@@ -25,3 +25,13 @@ class MyApiService extends ApiService {
 
 export default new MyApiService( config )
 ```
+
+## Development
+This project builds with Node.js 26 LTS and npm 11. The `.nvmrc` file selects the Node.js version, and CI uses the same file.
+
+```bash
+nvm use
+npm ci
+npm run build
+npm run lint
+```

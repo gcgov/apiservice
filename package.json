@@ -39,5 +39,20 @@
 	"bugs": {
 		"url": "https://github.com/gcgov/apiservice/issues"
 	},
-	"homepage": "https://github.com/gcgov/apiservice#readme"
+	"homepage": "https://github.com/gcgov/apiservice#readme",
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": ">=26.0.0 <27.0.0",
+			"onFail": "warn"
+		},
+		"packageManager": {
+			"name": "npm",
+			"version": ">=11.0.0 <12.0.0",
+			"onFail": "warn"
+		}
+	},
+	"allowScripts": {
+		"esbuild": true
+	}
 }
