@@ -1,0 +1,124 @@
+name: Dependabot auto-merge and release
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'gcgov/apiservice'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+
+      - name: Build
+        run: yarn build
+
+  merge-and-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+        with:
+          # Optional: a Dependabot secret named DEPENDABOT_ALERTS_TOKEN with
+          # "Dependabot alerts: read" lets the workflow detect security
+          # updates, so it also merges security updates that are major bumps.
+          github-token: ${{ secrets.DEPENDABOT_ALERTS_TOKEN || secrets.GITHUB_TOKEN }}
+          alert-lookup: ${{ secrets.DEPENDABOT_ALERTS_TOKEN != '' }}
+
+      - name: Decide if the update qualifies
+        id: decide
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ALERT_STATE: ${{ steps.metadata.outputs.alert-state }}
+          GHSA_ID: ${{ steps.metadata.outputs.ghsa-id }}
+        run: |
+          qualifies=false
+          case "$UPDATE_TYPE" in
+            version-update:semver-minor|version-update:semver-patch) qualifies=true ;;
+          esac
+          if [ -n "$GHSA_ID" ] || [ "$ALERT_STATE" = "OPEN" ]; then
+            qualifies=true
+          fi
+          echo "Update type: ${UPDATE_TYPE:-unknown}, alert: ${GHSA_ID:-none}, qualifies: $qualifies"
+          echo "qualifies=$qualifies" >> "$GITHUB_OUTPUT"
+
+      - name: Merge the pull request
+        if: steps.decide.outputs.qualifies == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge "$PR_URL" --squash --delete-branch --match-head-commit "$HEAD_SHA"
+
+      - name: Check out main
+        if: steps.decide.outputs.qualifies == 'true' && startsWith(steps.metadata.outputs.package-ecosystem, 'npm')
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        if: steps.decide.outputs.qualifies == 'true' && startsWith(steps.metadata.outputs.package-ecosystem, 'npm')
+        with:
+          node-version: 22
+
+      - name: Bump version, build, tag, and release
+        if: steps.decide.outputs.qualifies == 'true' && startsWith(steps.metadata.outputs.package-ecosystem, 'npm')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+          DEPENDENCIES: ${{ steps.metadata.outputs.dependency-names }}
+        run: |
+          corepack enable
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Retry when another release pushes to main first.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main --tags
+            git reset --hard origin/main
+
+            npm version patch --no-git-tag-version
+            version="$(node -p "require('./package.json').version")"
+            tag="v${version}"
+
+            yarn install
+            yarn build
+
+            git add package.json dist
+            git commit -m "bump version to ${version}" -m "Dependency update: ${DEPENDENCIES}"
+            git tag -a "$tag" -m "$tag"
+
+            if git push --atomic origin HEAD:main "refs/tags/${tag}"; then
+              gh release create "$tag" --title "$tag" --generate-notes --verify-tag
+              exit 0
+            fi
+
+            echo "Push failed on attempt ${attempt}. Retrying."
+            git tag -d "$tag"
+            sleep $((attempt * 10))
+          done
+
+          echo "Could not push the release after 5 attempts."
+          exit 1
