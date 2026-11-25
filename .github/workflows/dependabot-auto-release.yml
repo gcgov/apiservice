@@ -16,23 +16,20 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
-
-      - name: Enable Corepack
-        run: corepack enable
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
-        run: yarn install
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+        run: npm ci
 
       - name: Build
-        run: yarn build
+        run: npm run build
 
   merge-and-release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      actions: write # start the npm publish workflow
       contents: write
       pull-requests: write
     steps:
@@ -81,16 +78,14 @@ jobs:
       - uses: actions/setup-node@v5
         if: steps.decide.outputs.qualifies == 'true' && startsWith(steps.metadata.outputs.package-ecosystem, 'npm')
         with:
-          node-version: 22
+          node-version: 24
 
-      - name: Bump version, build, tag, and release
+      - name: Bump version, build, tag, release, and publish
         if: steps.decide.outputs.qualifies == 'true' && startsWith(steps.metadata.outputs.package-ecosystem, 'npm')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
           DEPENDENCIES: ${{ steps.metadata.outputs.dependency-names }}
         run: |
-          corepack enable
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -103,15 +98,18 @@ jobs:
             version="$(node -p "require('./package.json').version")"
             tag="v${version}"
 
-            yarn install
-            yarn build
+            npm ci
+            npm run build
 
-            git add package.json dist
+            git add package.json package-lock.json dist
             git commit -m "bump version to ${version}" -m "Dependency update: ${DEPENDENCIES}"
             git tag -a "$tag" -m "$tag"
 
             if git push --atomic origin HEAD:main "refs/tags/${tag}"; then
               gh release create "$tag" --title "$tag" --generate-notes --verify-tag
+              # A release made with GITHUB_TOKEN does not start other
+              # workflows, so start the npm publish workflow directly.
+              gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f tag="$tag"
               exit 0
             fi
 

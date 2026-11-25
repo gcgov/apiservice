@@ -4,8 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    # The repository has no committed lockfile. "increase" makes Dependabot
-    # raise the version ranges in package.json for minor and patch updates.
+    # "increase" raises the version ranges in package.json, not only the
+    # lockfile, so projects that install this package also get the updates.
     versioning-strategy: "increase"
     open-pull-requests-limit: 10
     groups:

@@ -17,16 +17,11 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
+          cache: npm
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      # yarn.lock is not committed, so allow Yarn to create one in CI.
       - name: Install dependencies
-        run: yarn install
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+        run: npm ci
 
       - name: Build
-        run: yarn build
+        run: npm run build
