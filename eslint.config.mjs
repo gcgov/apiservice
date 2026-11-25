@@ -30,11 +30,15 @@ export default [
   {
     rules: {
       "@typescript-eslint/no-unused-vars":  "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
 
   {
-    rules: {},
+    rules: {
+      // Debug output must not ship. Use console.info, console.warn or console.error for
+      // messages that are meant for the developers who use this library.
+      "no-console": ["error", { allow: ["info", "warn", "error"] }],
+    },
   }
 ];

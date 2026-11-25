@@ -22,14 +22,12 @@ class ApiService {
     constructor(apiConfig: ApiConfig) {
         this.serviceId = crypto.randomUUID()
         this.config = apiConfig
-
-        console.log('Constructed ApiService #' + this.serviceId + ' for base url ' + apiConfig.baseUrl);
     }
 
     private createRequest = async (
         method: string,
         urlPath: string,
-        data: any = null,
+        data: unknown = null,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<ApiRequestQueueItem> => {
@@ -68,7 +66,7 @@ class ApiService {
     public buildConfig = async (
         method: string = 'GET',
         options: RequestInit = {},
-        data: any = null,
+        data: unknown = null,
         abortController: AbortController | null = null,
         authentication: boolean = true,
         requestId: string = crypto.randomUUID()
@@ -111,7 +109,7 @@ class ApiService {
             //get access token
             const accessToken = await this.config.getAccessTokenFn();
             if (accessToken === '' || accessToken === null) {
-                console.log('empty access token');
+                console.warn('empty access token');
                 throw new ApiAuthError('Authentication failed', 401)
             }
 
@@ -130,41 +128,34 @@ class ApiService {
 
     /**
      * Standardize error reporting up the stack to our ApiError
-     * @param {Error} e
+     * @param e the value that fetch or the response check rejected with
      * @throws {Error|ApiAuthError|ApiError}
      */
-    private apiErrorCatch = async (e: any): Promise<void> => {
-        console.log(e)
-        const response = e?.response
-        const request = e?.request
+    private apiErrorCatch = async (e: unknown): Promise<void> => {
+        console.error(e)
+        const error: { code?: unknown, message?: unknown, response?: unknown } = typeof e === 'object' && e !== null ? e : {}
 
-        if (e.code === 'ERR_NETWORK') {
+        if (error.code === 'ERR_NETWORK') {
             throw new ApiError('Network connection problem', '1001')
-        } else if (e.code === 'ERR_CANCELED') {
+        } else if (error.code === 'ERR_CANCELED') {
             throw new ApiError('Request cancelled', '1000')
         }
 
-        if (response) {
-            if (response.headers && response.headers.get('Content-Type').includes('application/json')) {
-                response.data = await response.json()
-            }
-        }
+        if (error.response instanceof Response) {
+            const response = error.response
 
-        //pretty error from API
-        if (response && response.data && response.data.message) {
-            throw new ApiError(response.data.message, response.status, response.data);
-        }
-        //standard 400, 404, 500, etc error
-        else if (response && response.status) {
-            throw new ApiError(e.message, response.status);
-        }
-        //if it is a blob (file download)
-        else if (request && response && request.responseType === 'blob' && response.data instanceof Blob && response.data.type && response.data.type.toLowerCase().includes('json')) {
-            const resolvedResponse = JSON.parse(await response.data.text());
-            if (resolvedResponse.message && resolvedResponse.status && resolvedResponse.data) {
-                throw new ApiError(resolvedResponse.message, resolvedResponse.status, resolvedResponse.data);
-            } else if (resolvedResponse.message && resolvedResponse.data) {
-                throw new ApiError(resolvedResponse.message, response.status, resolvedResponse.data);
+            let data: unknown = undefined
+            if (response.headers.get('Content-Type')?.includes('application/json')) {
+                data = await response.json()
+            }
+
+            //pretty error from API
+            if (typeof data === 'object' && data !== null && 'message' in data && typeof data.message === 'string' && data.message !== '') {
+                throw new ApiError(data.message, response.status, data);
+            }
+            //standard 400, 404, 500, etc error
+            if (response.status) {
+                throw new ApiError(typeof error.message === 'string' ? error.message : '', response.status);
             }
         }
 
@@ -172,8 +163,6 @@ class ApiService {
     }
 
     cancelRequests = async (requestIds: string[] = []): Promise<void> => {
-        //console.log('cancel requests')
-        //console.log(requestIds)
         for (const i in requestIds) {
             const requestId = requestIds[i]
             if (this.requestsQueue[requestId]) {
@@ -268,7 +257,7 @@ class ApiService {
      */
     postAdv = async (
         url: string,
-        data: any,
+        data: unknown,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<ApiAdvancedResponse> => {
@@ -296,7 +285,7 @@ class ApiService {
      */
     post = async (
         url: string,
-        data: any,
+        data: unknown,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<Response> => {
@@ -309,12 +298,11 @@ class ApiService {
      */
     postForm = async (
         url: string,
-        data: any,
+        data: unknown,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<Response> => {
         const requestQueueItem = await this.createRequest('POST', url, data, options, authentication)
-        console.log(requestQueueItem)
         // createRequest always sets config.headers to a Headers object
         const headers = requestQueueItem.config.headers as Headers
         headers.set('Content-Type', 'multipart/form-data')
@@ -331,7 +319,7 @@ class ApiService {
      */
     put = async (
         url: string,
-        data: any,
+        data: unknown,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<Response> => {
@@ -363,7 +351,7 @@ class ApiService {
      */
     postDownload = async (
         url: string,
-        data: any,
+        data: unknown,
         options: RequestInit = {},
         authentication: boolean = true
     ): Promise<void> => {
